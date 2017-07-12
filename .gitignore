@@ -1,0 +1,13 @@
+# Byte-compiled, distribution, packaging files
+__pycache__/
+*.pyc
+
+.Python
+.DS_Store
+
+#Environments
+.env
+.venv
+env/
+venv/
+ENV/
