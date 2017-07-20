@@ -1,15 +1,15 @@
 import requests
 import re
 import os
-from flask import Flask, Response, request, abort
+from flask import Flask, Response, request, abort, jsonify
 
 app = Flask(__name__)
 
 # default config values
 app.config.update(dict(
     ALLOWED_EMAILS = 'allowed_emails.txt',
-    USES_OAUTH = False,
-    PUBLIC_DIR = '/static/data/public'
+    USES_OAUTH = True,
+    PUBLIC_DIR = None
 ))
 # override with values from _config.py
 app.config.from_object('_config')
@@ -18,19 +18,53 @@ seen_tokens = set()
 
 # routes
 @app.route('/')
-def show_igv():
-    return app.send_static_file('igv.html')
+def show_vcf():
+    return app.send_static_file('str-dev.html')
+
+@app.route('/data/<path:path>')
+def get_data_list(path):
+    #print request.headers
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    abs_path = os.path.join(basedir, path)
+    json_results = {'dirs': [], 'files': []}
+    executables = ['.vcf', '.vcf.gz', '.bam']
+    for filename in os.listdir(path):
+        full_path = os.path.join(abs_path, filename)
+        if not os.path.isfile(full_path):
+            data = {
+                'name': filename,
+                'path': path+'/'+filename
+            }
+            json_results['dirs'].append(data)
+        else:
+            if allowed_ending(filename, executables):
+                data = {
+                    'name': filename,
+                    'displayName': filename[:filename.find('.')].replace('_', ' '),
+                    'path': path+'/'+filename,
+                }
+                json_results['files'].append(data)
+    # sort
+    try:
+        def compare(file):
+            first = file['name'].rfind('_')
+            second = file['name'].find('.')
+            return int(file['name'][first+1:second])
+        json_results['files'].sort(key=compare)
+    except ValueError:
+        json_results['files'].sort()
+    rv = jsonify(json_results)
+    #rv.headers['Access-Control-Allow-Origin'] = '*'
+    return rv
 
 @app.before_request
 def before_request():
-    #print request.headers
     if app.config['USES_OAUTH'] and (not app.config['PUBLIC_DIR'] or \
             not os.path.exists('.'+app.config['PUBLIC_DIR']) or \
             not request.path.startswith(app.config['PUBLIC_DIR'])):
         auth = request.headers.get("Authorization", None)
         if auth:
             token = auth.split()[1]
-            #print request.path
             if token not in seen_tokens:
                 google_url = 'https://www.googleapis.com/oauth2/v1/userinfo'
                 params = {'access_token':token}
@@ -41,7 +75,7 @@ def before_request():
                 else:
                     abort(403)
         else:
-            if "static/data" in request.path:
+            if "static/data" in request.path and "data/static/data" not in request.path:
                 abort(401)
     return ranged_data_response(request.headers.get('Range', None), request.path[1:])
 
@@ -70,3 +104,9 @@ def ranged_data_response(range_header, path):
     rv = Response(data, 206, mimetype="application/octet-stream", direct_passthrough=True)
     rv.headers['Content-Range'] = 'bytes {0}-{1}/{2}'.format(offset, offset + length-1, size)
     return rv
+
+def allowed_ending(string, endings):
+    for ending in endings:
+        if string.endswith(ending):
+            return True
+    return False
