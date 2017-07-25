@@ -1,6 +1,8 @@
 import requests
 import re
 import os
+import pysam
+import urllib
 from flask import Flask, Response, request, abort, jsonify
 
 app = Flask(__name__)
@@ -56,6 +58,20 @@ def get_data_list(path):
     rv = jsonify(json_results)
     #rv.headers['Access-Control-Allow-Origin'] = '*'
     return rv
+
+@app.route('/alignments')
+def alignments():
+    reference = "alignments/" + request.args.get('reference') + ".fa"
+    filename = "alignments/" + request.args.get('file')
+    region = request.args.get('region')
+    options = request.args.get("options")
+    try:
+        if options:
+            return pysam.view(urllib.unquote(options), "-T", reference, filename, region)
+        else:
+            return pysam.view("-T", reference, filename, region)
+    except pysam.SamtoolsError as e:
+        return e.value
 
 @app.before_request
 def before_request():

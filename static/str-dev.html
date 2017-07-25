@@ -73,7 +73,11 @@
 
 <body>
 
-<div id="myDiv" style="padding-top: 50px;padding-bottom: 20px; height: auto">
+<div id="myDiv" style="padding-top: 25px;padding-bottom: 20px; height: auto">
+    <p>Use the two select widgets to load tracks. The left select widget shows directories
+      and the right select shows loadable files.</p>
+
+    <p>Also remember to authorize before attempting to load tracks.</p>
 
     <a href='#' onClick='oauth.google.login()' id="loginText"> Authorize </a>
 
@@ -125,10 +129,8 @@
 
     <div class="directorySelect" style="display:inline-block">
       <select style="min-width: 100px;" id="dirPicker" onchange="igv.VariantLoader.loadNewDir()"></select>
-      <select style="min-width: 100px; margin-left: 5px; margin-right:5px" id="filePicker"></select>
-      <button style="margin-left: 5px; margin-right:5px" onclick="igv.VariantLoader.loadSelectedTrack()">
-        Load Track
-      </button>
+      <select style="min-width: 100px; margin-left: 5px; margin-right:5px"
+          id="filePicker" onchange="igv.VariantLoader.loadSelectedTrack()"></select>
     </div>
     <p></p>
 </div>
@@ -148,7 +150,6 @@
                 fastaURL: "https://s3.amazonaws.com/igv.broadinstitute.org/genomes/seq/1kg_v37/human_g1k_v37_decoy.fasta",
                 cytobandURL: "https://s3.amazonaws.com/igv.broadinstitute.org/genomes/seq/b37/b37_cytoband.txt"
             },
-            locus: 'gstt1',
             tracks:
                     [
                         {
@@ -168,6 +169,7 @@
         };
 
         browser = igv.createBrowser(div, options);
+        igv.setupFlaskBrowser();
 
     })
 
