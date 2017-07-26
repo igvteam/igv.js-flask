@@ -89,11 +89,6 @@
             gapi.auth2.getAuthInstance().signIn();
         }
 
-        function updateSigninStatus(isSignedIn) {
-
-            var user = gapi.auth2.getAuthInstance().currentUser.get();
-            oauth.google.access_token = user.getAuthResponse().access_token;
-        }
 
     </script>
 
@@ -164,6 +159,12 @@
         gapi.load('client:auth2', initClient);
 
 
+        function updateSigninStatus(isSignedIn) {
+
+            var user = gapi.auth2.getAuthInstance().currentUser.get();
+            oauth.google.access_token = user.getAuthResponse().access_token;
+        }
+
         function initClient() {
 
             gapi.client.init({
@@ -171,6 +172,11 @@
                 'scope': scope
 
             }).then(function () {
+
+                var user = gapi.auth2.getAuthInstance().currentUser.get();
+                if(user) {
+                    oauth.google.access_token = user.getAuthResponse().access_token;
+                }
 
                 var $b = $("#signinbutton");
                 $b.removeAttr('disabled');
@@ -207,6 +213,7 @@
 
 
                 gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+                gapi.auth2.getAuthInstance().currentUser.listen(updateSigninStatus);
 
             });
         }
