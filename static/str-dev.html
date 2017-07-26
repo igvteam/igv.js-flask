@@ -28,6 +28,8 @@
     <!-- Vendor JS -->
     <script type="text/javascript" src="../static/js/igv.js"></script>
 
+    <script src="https://apis.google.com/js/api.js"></script>
+
     <style type="text/css">
 
         #trackList {
@@ -75,11 +77,30 @@
 
 <div id="myDiv" style="padding-top: 25px;padding-bottom: 20px; height: auto">
     <p>Use the two select widgets to load tracks. The left select widget shows directories
-      and the right select shows loadable files.</p>
+        and the right select shows loadable files.</p>
 
     <p>Also remember to authorize before attempting to load tracks.</p>
 
-    <a href='#' onClick='oauth.google.login()' id="loginText"> Authorize </a>
+    <script>
+
+        function handleSignInClick(event) {
+            // Ideally the button should only show up after gapi.client.init finishes, so that this
+            // handler won't be called before OAuth is initialized.
+            gapi.auth2.getAuthInstance().signIn();
+        }
+
+        function updateSigninStatus(isSignedIn) {
+
+            var user = gapi.auth2.getAuthInstance().currentUser.get();
+            oauth.google.access_token = user.getAuthResponse().access_token;
+
+            $("#signinbutton").
+
+        }
+
+    </script>
+
+    <button id="signinbutton" disabled='disabled' onclick="handleSignInClick()">Authorize</button>
 
     <p></p>
 
@@ -128,9 +149,9 @@
     </div> -->
 
     <div class="directorySelect" style="display:inline-block">
-      <select style="min-width: 100px;" id="dirPicker" onchange="igv.VariantLoader.loadNewDir()"></select>
-      <select style="min-width: 100px; margin-left: 5px; margin-right:5px"
-          id="filePicker" onchange="igv.VariantLoader.loadSelectedTrack()"></select>
+        <select style="min-width: 100px;" id="dirPicker" onchange="igv.VariantLoader.loadNewDir()"></select>
+        <select style="min-width: 100px; margin-left: 5px; margin-right:5px"
+                id="filePicker" onchange="igv.VariantLoader.loadSelectedTrack()"></select>
     </div>
     <p></p>
 </div>
@@ -139,19 +160,34 @@
 
 
     $(document).ready(function () {
-        var div,
-                options,
-                browser;
 
-        div = $("#myDiv")[0];
-        options = {
-            reference: {
-                id: "hg19",
-                fastaURL: "https://s3.amazonaws.com/igv.broadinstitute.org/genomes/seq/1kg_v37/human_g1k_v37_decoy.fasta",
-                cytobandURL: "https://s3.amazonaws.com/igv.broadinstitute.org/genomes/seq/b37/b37_cytoband.txt"
-            },
-            tracks:
-                    [
+        var scope = "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/genomics https://www.googleapis.com/auth/devstorage.read_only https://www.googleapis.com/auth/userinfo.profile",
+                client_id = "661332306814-8nt29308rppg325bkq372vli8nm3na14.apps.googleusercontent.com";
+
+        gapi.load('client:auth2', initClient);
+
+
+        function initClient() {
+
+            gapi.client.init({
+                'clientId': client_id,
+                'scope': scope
+
+            }).then(function () {
+
+                var $b = $("#signinbutton");
+                $b.removeAttr('disabled');
+
+                var div, options, browser;
+
+                div = $("#myDiv")[0];
+                options = {
+                    reference: {
+                        id: "hg19",
+                        fastaURL: "https://s3.amazonaws.com/igv.broadinstitute.org/genomes/seq/1kg_v37/human_g1k_v37_decoy.fasta",
+                        cytobandURL: "https://s3.amazonaws.com/igv.broadinstitute.org/genomes/seq/b37/b37_cytoband.txt"
+                    },
+                    tracks: [
                         {
                             name: "Genes",
                             searchable: false,
@@ -166,12 +202,18 @@
                         }
 
                     ]
-        };
+                };
 
-        browser = igv.createBrowser(div, options);
-        igv.setupFlaskBrowser();
 
-    })
+                browser = igv.createBrowser(div, options);
+                igv.setupFlaskBrowser();
+
+
+                gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+
+            });
+        }
+    });
 
 
 </script>
