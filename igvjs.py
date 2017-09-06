@@ -3,6 +3,7 @@ import re
 import os
 import pysam
 import urllib
+import MySQLdb
 from flask import Flask, Response, request, abort, jsonify
 
 app = Flask(__name__)
@@ -61,17 +62,102 @@ def get_data_list(path):
 
 @app.route('/alignments')
 def alignments():
-    reference = "alignments/" + request.args.get('reference') + ".fa"
-    filename = "alignments/" + request.args.get('file')
+    filename = request.args.get('file')
+    if not filename:
+        return "Please specify a filename."
     region = request.args.get('region')
+    if not region:
+        return "Please specify a region."
+
+    args = []
+
     options = request.args.get("options")
+    if options:
+        args.append(urllib.unquote(options))
+
+    reference = request.args.get('reference')
+    if reference:
+        reference = "static/alignments/refs/" + reference + ".fa"
+        args.append("-T")
+        args.append(reference)
+
+    filename = "static/alignments/files/" + filename
+    args.append(filename)
+    args.append(region)
+
     try:
-        if options:
-            return pysam.view(urllib.unquote(options), "-T", reference, filename, region)
-        else:
-            return pysam.view("-T", reference, filename, region)
+        return pysam.view(*args)
     except pysam.SamtoolsError as e:
         return e.value
+
+@app.route('/ucsc')
+def query_ucsc():
+
+    result = ''
+
+    def reg2bins(beg, end):
+        bin_list = []
+        end -= 1
+        bin_list.append(0)
+        for k in xrange(1 + (beg >> 26), 2 + (end >> 26)):
+            bin_list.append(k)
+        for k in xrange(9 + (beg >> 23), 10 + (end >> 23)):
+            bin_list.append(k)
+        for k in xrange(73 + (beg >> 20), 74 + (end >> 20)):
+            bin_list.append(k)
+        for k in xrange(585 + (beg >> 17), 586 + (end >> 17)):
+            bin_list.append(k)
+        for k in xrange(4681 + (beg >> 14), 4682 + (end >> 14)):
+            bin_list.append(k)
+        return bin_list
+
+    db = request.args.get('db')
+    table = request.args.get('table')
+    genomic_range = request.args.get('genomic_range')
+
+    ucsc_host = 'genome-mysql.soe.ucsc.edu'
+    ucsc_user = 'genome'
+
+    m = re.search('(chr\d+)', genomic_range)
+    chrom = m.group(1)
+
+    try:
+        db = MySQLdb.connect(host=ucsc_host, user=ucsc_user, db=db)
+        cur = db.cursor()
+
+        cur.execute("SELECT * FROM information_schema.COLUMNS \
+WHERE TABLE_NAME = %s AND COLUMN_NAME = 'bin'", (table,))
+
+        if cur.fetchone():
+            m = re.search(chrom+':(\d+)-(\d*)', genomic_range)
+            if m:
+                start = int(m.group(1))
+                end = int(m.group(2))
+
+            bins = reg2bins(start, end)
+            bin_str = '('+','.join(str(bin) for bin in bins)+')'
+
+            cur.execute("SELECT * FROM "+table+" WHERE chrom = %s \
+AND chromStart >= %s AND chromEnd <= %s \
+AND bin in "+bin_str, (chrom, start, end))
+
+        else:
+            cur.execute("SELECT * FROM "+table+" WHERE chrom = %s", (chrom,))
+
+        for row in cur.fetchall():
+            result += str(row)
+
+    except MySQLdb.Error, e:
+        try:
+            result = "MySQL Error [{}]: {}".format(e.args[0], e.args[1])
+        except IndexError:
+            result = "MySQL Error: {}".format(str(e))
+
+    finally:
+        cur.close()
+        db.close()
+
+    return result
 
 @app.before_request
 def before_request():
@@ -79,6 +165,7 @@ def before_request():
             not os.path.exists('.'+app.config['PUBLIC_DIR']) or \
             not request.path.startswith(app.config['PUBLIC_DIR'])):
         auth = request.headers.get("Authorization", None)
+	#print auth
         if auth:
             token = auth.split()[1]
             if token not in seen_tokens:

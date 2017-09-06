@@ -1,2 +1,6 @@
+import os
 from igvjs import app
-app.run(port=8659, host='0.0.0.0')
+
+port = int(os.environ.get('PORT', 8659))
+host = '127.0.0.1' if app.config['DEBUG'] else '0.0.0.0'
+app.run(port=port, host=host)
