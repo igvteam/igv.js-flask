@@ -4,7 +4,7 @@ import os
 import pysam
 import urllib
 import MySQLdb
-from flask import Flask, Response, request, abort, jsonify
+from flask import Flask, Response, request, abort, jsonify, render_template, url_for
 
 app = Flask(__name__)
 
@@ -22,7 +22,7 @@ seen_tokens = set()
 # routes
 @app.route('/')
 def show_vcf():
-    return app.send_static_file('str-dev.html')
+    return render_template('str-dev.html')
 
 @app.route('/data/<path:path>')
 def get_data_list(path):

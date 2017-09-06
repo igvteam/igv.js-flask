@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="shortcut icon" href=../static/img/favicon.ico>
+    <title>IGV - Integrative Genomics Viewer</title>
+
+    <!-- jQuery UI CSS -->
+    <link rel="stylesheet" type="text/css" href="//code.jquery.com/ui/1.12.1/themes/redmond/jquery-ui.css"/>
+
+    <!-- Font Awesome CSS -->
+    <link rel="stylesheet" type="text/css"
+          href="https://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css">
+
+    <!-- IGV CSS -->
+    <link rel="stylesheet" type="text/css" href="../static/css/igv.css">
+
+    <!-- jQuery JS -->
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+
+    <!-- jQuery UI JS -->
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+
+    <!-- Vendor JS -->
+    <script type="text/javascript" src="{{ url_for('static', filename='js/igv.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/variantLoader.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/init.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/oauth.js') }}"></script>
+
+    <script src="https://apis.google.com/js/api.js"></script>
+
+    <style type="text/css">
+
+        #trackList {
+
+            border-color: rgb(127, 127, 127);
+            border-style: solid;
+            border-width: thin;
+
+            width: 480px;
+            height: 100px;
+            overflow-y: auto;
+        }
+
+        div#trackList > div, div#myDiv > h3 {
+
+            font-family: 'PT Sans', sans-serif;
+            font-size: small;
+            font-weight: 400;
+
+            color: #444;
+            margin-left: 16px;
+            margin-top: 4px;
+            margin-bottom: 4px;
+
+            padding-left: 32px;
+        }
+
+        div#myDiv > h3 {
+            font-size: large;
+        }
+
+        div#trackList > div:hover,
+        div#trackList > div:focus,
+        div#trackList > div:active {
+            cursor: pointer;
+            color: white;
+            background-color: rgba(49, 106, 246, 1);
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div id="myDiv" style="padding-top: 25px;padding-bottom: 20px; height: auto">
+    <p>Use the two select widgets to load tracks. The left select widget shows directories
+        and the right select shows loadable files.</p>
+
+    <p>Also remember to authorize before attempting to load tracks.</p>
+
+    <button id="signinbutton" disabled='disabled' onclick="handleSignInClick()">Authorize</button>
+
+    <p></p>
+
+    <div class="directorySelect" style="display:inline-block">
+        <select style="min-width: 100px;" id="dirPicker" onchange="igv.VariantLoader.loadNewDir()"></select>
+        <select style="min-width: 100px; margin-left: 5px; margin-right:5px"
+                id="filePicker" onchange="igv.VariantLoader.loadSelectedTrack()"></select>
+    </div>
+    <p></p>
+</div>
+
+<script type="text/javascript">
+
+
+$(document).ready(function () {
+  var uses_oauth = {{ config['USES_OAUTH']|tojson }}
+  if (uses_oauth) {
+    initBrowserWithOAuth();
+  } else {
+    initBrowser();
+  }
+});
+
+
+</script>
+
+</body>
+
+</html>
