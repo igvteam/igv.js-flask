@@ -11,3 +11,7 @@ __pycache__/
 env/
 venv/
 ENV/
+
+_config.py
+allowed_emails.txt
+static/data/*

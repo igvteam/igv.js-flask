@@ -17562,7 +17562,7 @@ var igvxhr = (function (igvxhr) {
 
                 xhr.onerror = function (event) {
 
-                    if (isCrossDomain(url) && url && !options.crossDomainRetried && igv.browser.crossDomainProxy &&
+                    if (isCrossDomain(url) && url && !options.crossDomainRetried && igv.browser && igv.browser.crossDomainProxy &&
                         url != igv.browser.crossDomainProxy) {
 
                         options.sendData = "url=" + url;
@@ -18776,7 +18776,7 @@ var oauth = (function (oauth) {
         var VALIDURL = 'https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=';
         var SCOPE = 'https://www.googleapis.com/auth/genomics';
         var CLIENTID = '661332306814-8nt29308rppg325bkq372vli8nm3na14.apps.googleusercontent.com';
-        var REDIRECT = 'http://snorlax.ucsd.edu:8659/static/emptyPage.html';
+        var REDIRECT = 'http://snorlax.ucsd.edu:8659/static/emptyPage.html'; //'http://localhost:5000/static/emptyPage.html'
         var LOGOUT = 'http://accounts.google.com/Logout';
         var TYPE = 'token';
         var _url = OAUTHURL +
@@ -23767,6 +23767,7 @@ var igv = (function (igv) {
             {name: "Alt", value: this.alternateBases},
             {name: "Qual", value: this.quality},
             {name: "Filter", value: this.filter},
+            "<hr>"
          ];
 
         if(this.calls && this.calls.length === 1) {
@@ -23780,10 +23781,9 @@ var igv = (function (igv) {
                 fields.push({name: key, value: arrayToCommaString(self.info[key])});
             });
         }
-
         return fields;
 
-    }
+    };
 
 
     function arrayToCommaString(array) {
@@ -23833,8 +23833,8 @@ var igv = (function (igv) {
 
 var igv = (function (igv) {
 
-    var vGap = 2;
     var DEFAULT_VISIBILITY_WINDOW = 100000;
+    var sortDirection = "ASC";
 
     igv.VariantTrack = function (config) {
 
@@ -23847,8 +23847,10 @@ var igv = (function (igv) {
         this.labelDisplayMode = config.labelDisplayMode;
 
         this.variantHeight = config.variantHeight || 20;
-        this.squishedCallHeight = config.squishedCallHeight || 1;
-        this.expandedCallHeight = config.expandedCallHeight || 10;
+        this.squishedCallHeight = config.squishedCallHeight || 4;
+        this.expandedCallHeight = config.expandedCallHeight || 20;
+        this.expandedVGap = 4;
+        this.squishedVGap = 1;
 
         this.featureHeight = config.featureHeight || 14;
 
@@ -23859,8 +23861,6 @@ var igv = (function (igv) {
         this.hetvarColor = config.hetvarColor || "rgb(34,12,253)";
 
         this.nRows = 1;  // Computed dynamically
-
-        this.colorScheme = "GRADIENT";
     };
 
 
@@ -23940,6 +23940,7 @@ var igv = (function (igv) {
 
         var callSets = this.callSets,
             nCalls = callSets ? callSets.length : 0,
+            vGap = (this.displayMode === 'EXPANDED') ? this.expandedVGap : this.squishedVGap,
             nRows,
             h;
 
@@ -23961,19 +23962,18 @@ var igv = (function (igv) {
             this.nRows = nRows;  // Needed in draw function
 
 
-            if ((nCalls * nRows * this.expandedCallHeight) > 2000) {
-                this.expandedCallHeight = Math.max(1, 2000 / (nCalls * nRows));
-            }
+            // if ((nCalls * nRows * this.expandedCallHeight) > 2000) {
+            //     this.expandedCallHeight = Math.max(1, 2000 / (nCalls * nRows));
+            // }
 
-
-            return h + vGap + nCalls * nRows * (this.displayMode === "EXPANDED" ? this.expandedCallHeight : this.squishedCallHeight);
+            return h + vGap + nCalls * ((this.displayMode === "EXPANDED" ? this.expandedCallHeight : this.squishedCallHeight)+vGap);
+            //return h + vGap + nCalls * nRows * (this.displayMode === "EXPANDED" ? this.expandedCallHeight : this.squishedCallHeight);
 
         }
 
     };
 
     igv.VariantTrack.prototype.draw = function (options) {
-
         var featureList = options.features,
             ctx = options.context,
             bpPerPixel = options.bpPerPixel,
@@ -23982,12 +23982,17 @@ var igv = (function (igv) {
             pixelHeight = options.pixelHeight,
             bpEnd = bpStart + pixelWidth * bpPerPixel + 1,
             callHeight = ("EXPANDED" === this.displayMode ? this.expandedCallHeight : this.squishedCallHeight),
+            vGap = (this.displayMode === 'EXPANDED') ? this.expandedVGap : this.squishedVGap,
             px, px1, pw, py, h, style, i, variant, call, callSet, j, allRef, allVar, callSets,
-            cr, cg, cb, vSpace, firstAllele, secondAllele, maxLen, minLen, colorScale;
+            cr, cg, cb, firstAllele, secondAllele, maxLen, minLen, colorScale;
 
         this.variantBandHeight = 10 + this.nRows * (this.variantHeight + vGap);
 
         callSets = this.callSets;
+
+        // console.log("feature list: ", featureList);
+        //
+        // console.log("callsets: ", callSets);
 
         igv.graphics.fillRect(ctx, 0, 0, pixelWidth, pixelHeight, {'fillStyle': "rgb(255, 255, 255)"});
 
@@ -24020,8 +24025,7 @@ var igv = (function (igv) {
 
 
                 if (callSets && variant.calls && "COLLAPSED" !== this.displayMode) {
-                    h = callHeight*2;
-                    vSpace = vGap*2;
+                    h = callHeight;
 
                     for (j = 0; j < callSets.length; j++) {
                         callSet = callSets[j];
@@ -24067,52 +24071,30 @@ var igv = (function (igv) {
                                 }
                             );
 
-                            py = this.variantBandHeight + vGap + (j + variant.row) * (h + vSpace);
+                            py = this.variantBandHeight + vGap + (j + variant.row) * (h + vGap);
                             //console.log(py);
-                            if (call.genotype[0]) {
+                            if (!isNaN(call.genotype[0])) {
                                 firstAllele = getAlleleString(call, variant, 0);
                                 secondAllele = getAlleleString(call, variant, 1);
-                                if (this.colorScheme === "INDEX") {
-                                    // color scheme based on index of allele
-                                    numCol = 255 / (variant.alleles.length + 1);
-                                    if (call.genotype[0] === call.genotype[1]) { // homozygous
-                                        cr = cg = cb = 255 - (Math.floor(numCol * (call.genotype[0] + 1)));
-                                    } else { // heterozygous
-                                        cr = 0;
-                                        cg = Math.floor(numCol * (call.genotype[0] + 1));
-                                        cb = Math.floor(numCol * (call.genotype[1] + 1));
-                                    }
-                                    ctx.fillStyle = "rgb(" + cr + "," + cg + "," + cb + ")";
-                                } else {
-                                    // gradient color scheme based on allele length
-                                    ctx.fillStyle = colorScale.getColor(Math.max(firstAllele.length, secondAllele.length));
-                                }
-                                ctx.fillRect(px, py, pw, h);
 
-                                // allele text
-                                if (this.displayMode === "EXPANDED") {
-                                    ctx.textAlign = "left";
-                                    ctx.textBaseline = "middle";
-                                    ctx.fillStyle = (this.colorScheme === "INDEX") ?
-                                        "rgb(" + 255 + "," + (255 - cg) + "," + (255 - cb) + ")" : "#000";
-                                    ctx.font = "8px serif";
-                                    if (firstAllele === secondAllele) {
-                                        //ctx.font = "10px serif";
-                                        if (ctx.measureText(firstAllele).width < pw) {
-                                            ctx.fillText(firstAllele, px + vGap, py + h / 2);
-                                        }
-                                    } else {
-                                        if (ctx.measureText(firstAllele).width < pw && ctx.measureText(secondAllele).width < pw) {
-                                            ctx.fillText(firstAllele, px + vGap, py + h / 4);
-                                            ctx.fillText(secondAllele, px + vGap, py + h * 0.75);
-                                        }
-                                    }
+                                // gradient color scheme based on allele length
+                                ctx.fillStyle = colorScale.getColor(firstAllele.length);
+                                ctx.fillRect(px, py, pw, h/2);
+                                ctx.fillStyle = colorScale.getColor(secondAllele.length);
+                                ctx.fillRect(px, py+h/2, pw, h/2);
+                                if (this.displayMode === 'EXPANDED') {
+                                    ctx.beginPath();
+                                    ctx.moveTo(px, py+h/2);
+                                    ctx.lineTo(px+pw, py+h/2);
+                                    ctx.strokeStyle = '#000';
+                                    ctx.stroke();
                                 }
+
                             } else {
                                 // console.log("no call made, set fill to white");
                                 //ctx.fillStyle = "#FFFFFF";
                                 ctx.strokeStyle = "#B0B0B0";
-                                ctx.lineWidth = 0.8;
+                                //ctx.lineWidth = 0.8;
                                 ctx.strokeRect(px, py, pw, h);
                             }
                         }
@@ -24132,6 +24114,56 @@ var igv = (function (igv) {
         return (call.genotype[alleleNum] > 0) ? variant.alleles[call.genotype[alleleNum]-1].allele : variant.referenceBases;
     }
 
+    igv.VariantTrack.prototype.sortCallsets = function(variant, direction) {
+        var d = (direction === "ASC") ? 1 : -1;
+        this.callSets.sort(function(a, b) {
+            var aNan = isNaN(variant.calls[a.id].genotype[0]);
+            var bNan = isNaN(variant.calls[b.id].genotype[0]);
+            if (aNan && bNan) {
+                return 0;
+            } else if (aNan) {
+                return 1;
+            } else if (bNan) {
+                return -1;
+            } else {
+                var a0 = getAlleleString(variant.calls[a.id], variant, 0);
+                var a1 = getAlleleString(variant.calls[a.id], variant, 1);
+                var b0 = getAlleleString(variant.calls[b.id], variant, 0);
+                var b1 = getAlleleString(variant.calls[b.id], variant, 1);
+                var result = Math.max(b0.length, b1.length) - Math.max(a0.length, a1.length);
+                if (result === 0) {
+                    result = Math.min(b0.length, b1.length) - Math.min(a0.length, a1.length);
+                }
+                return d * result;
+            }
+        });
+    };
+
+    igv.VariantTrack.prototype.altClick = function(genomicLocation, referenceFrame, event) {
+        var chr = referenceFrame.chrName,
+            tolerance = Math.floor(2 * referenceFrame.bpPerPixel),  // We need some tolerance around genomicLocation, start with +/- 2 pixels
+            featureList = this.featureSource.featureCache.queryFeatures(chr, genomicLocation - tolerance, genomicLocation + tolerance),
+            self = this;
+
+        if (this.callSets && featureList && featureList.length > 0) {
+
+            featureList.forEach(function (variant) {
+
+
+                if ((variant.start <= genomicLocation + tolerance) &&
+                    (variant.end > genomicLocation - tolerance)) {
+                    console.log('alt-clicked');
+                    // var content = igv.formatPopoverText(['Ascending', 'Descending', 'Repeat Number']);
+                    //igv.popover.presentContent(event.pageX, event.pageY, [$asc, $desc]);
+
+                    self.sortCallsets(variant, sortDirection);
+                    sortDirection = (sortDirection === "ASC") ? "DESC" : "ASC";
+                    self.trackView.update();
+                }
+            });
+        }
+    };
+
     igv.VariantTrack.prototype.popupDataWithConfiguration = function (config) {
         return this.popupData(config.genomicLocation, config.x, config.y, config.viewport.genomicState.referenceFrame)
     };
@@ -24148,9 +24180,9 @@ var igv = (function (igv) {
             var chr = referenceFrame.chrName,
                 tolerance = Math.floor(2 * referenceFrame.bpPerPixel),  // We need some tolerance around genomicLocation, start with +/- 2 pixels
                 featureList = this.featureSource.featureCache.queryFeatures(chr, genomicLocation - tolerance, genomicLocation + tolerance),
+                vGap = (this.displayMode === 'EXPANDED') ? this.expandedVGap : this.squishedVGap,
                 popupData = [],
                 self = this;
-
 
             if (featureList && featureList.length > 0) {
 
@@ -24173,6 +24205,7 @@ var igv = (function (igv) {
                                 // Variant
                                 row = (Math.floor)((yOffset - 10 ) / (self.variantHeight + vGap));
                                 if (variant.row === row) {
+                                    console.log('variant.popupData called');
                                     Array.prototype.push.apply(popupData, variant.popupData(genomicLocation));
                                 }
                             }
@@ -24181,7 +24214,9 @@ var igv = (function (igv) {
                                 callSets = self.callSets;
                                 if (callSets && variant.calls) {
                                     callHeight = self.nRows * ("SQUISHED" === self.displayMode ? self.squishedCallHeight : self.expandedCallHeight);
-                                    row = Math.floor((yOffset - self.variantBandHeight - vGap) / callHeight);
+                                    // console.log("call height: ", callHeight);
+                                    // console.log("nRows: ", self.nRows);
+                                    row = Math.floor((yOffset - self.variantBandHeight - vGap) / (callHeight+vGap));
                                     cs = callSets[row];
                                     call = variant.calls[cs.id];
                                     Array.prototype.push.apply(popupData, extractPopupData(call, variant));
@@ -24193,7 +24228,7 @@ var igv = (function (igv) {
             }
             return popupData;
         }
-    }
+    };
 
     /**
      * Default popup text function -- just extracts string and number properties in random order.
@@ -24203,15 +24238,36 @@ var igv = (function (igv) {
      */
     function extractPopupData(call, variant) {
 
-        var gt = '', popupData;
-        call.genotype.forEach(function (i) {
-            if (i === 0) {
-                gt += variant.referenceBases;
+        var gt = '', popupData, i, allele, numRepeats = '', alleleFrac='';
+        var info = variant.getInfoObj(variant.info);
+        if (!isNaN(call.genotype[0])) {
+            for (i = 0; i < call.genotype.length; i++) {
+                if (call.genotype[i] === 0) {
+                    allele = variant.referenceBases;
+                    gt += allele;
+                    numRepeats += (allele.length / info.PERIOD).toString();
+                    alleleFrac += (parseInt(info.REFAC) / parseInt(info.AN)).toFixed(3);
+                } else {
+                    allele = variant.alleles[call.genotype[i] - 1].allele;
+                    gt += allele;
+                    numRepeats += (allele.length / info.PERIOD).toString();
+                    alleleFrac += (parseInt(info.AC.split(',')[call.genotype[i] - 1]) / parseInt(info.AN)).toFixed(3);
+                }
+                if (i < call.genotype.length - 1) {
+                    gt += " | ";
+                    numRepeats += " | ";
+                    alleleFrac += " | ";
+                }
             }
-            else {
-                gt += variant.alternateBases[i - 1];
-            }
-        })
+        }
+        // call.genotype.forEach(function (i) {
+        //     if (i === 0) {
+        //         gt += variant.referenceBases;
+        //     }
+        //     else {
+        //         gt += variant.alternateBases[i - 1];
+        //     }
+        // });
 
         popupData = [];
 
@@ -24219,11 +24275,20 @@ var igv = (function (igv) {
             popupData.push({name: 'Name', value: call.callSetName});
         }
         popupData.push({name: 'Genotype', value: gt});
+        if (numRepeats) {
+            popupData.push({name: 'Repeats', value: numRepeats});
+        }
+        if (alleleFrac) {
+            popupData.push({name: 'Allele Fraction', value: alleleFrac});
+        }
         if (call.phaseset !== undefined) {
             popupData.push({name: 'Phase set', value: call.phaseset});
         }
         if (call.genotypeLikelihood !== undefined) {
             popupData.push({name: 'genotypeLikelihood', value: call.genotypeLikelihood.toString()});
+        }
+        if (popupData.length > 2) {
+            popupData.push("<hr>");
         }
 
 
@@ -24276,15 +24341,15 @@ var igv = (function (igv) {
 
         }
 
-        $color = $('<div>');
-        $color.text("Color Scheme");
-        colorClickHandler = function() {
-            popover.hide();
-            self.colorScheme = (self.colorScheme === "GRADIENT") ? "INDEX" : "GRADIENT";
-            self.trackView.update();
-        };
-
-        menuItems.push({object: $color, click: colorClickHandler});
+        // $color = $('<div>');
+        // $color.text("Color Scheme");
+        // colorClickHandler = function() {
+        //     popover.hide();
+        //     self.colorScheme = (self.colorScheme === "GRADIENT") ? "INDEX" : "GRADIENT";
+        //     self.trackView.update();
+        // };
+        //
+        // menuItems.push({object: $color, click: colorClickHandler});
 
         return menuItems;
 
@@ -24641,6 +24706,8 @@ var igv = (function (igv) {
 
         var fields, infoFields, nameString;
 
+        //infoFields = this.info.split(";");
+        var info = this.getInfoObj(this.info);
 
         fields = [
             {name: "Names", value: this.names},
@@ -24648,21 +24715,45 @@ var igv = (function (igv) {
             {name: "Alt", value: this.alternateBases},
             {name: "Qual", value: this.quality},
             {name: "Filter", value: this.filter},
+            {name: "Heterozygosity", value: (info.AC && info.AN) ? this.calcHeterozygosity(info.AC, info.AN).toFixed(3) : 1},
             "<hr>"
         ];
 
-        infoFields = this.info.split(";");
-        infoFields.forEach(function (f) {
-            var tokens = f.split("=");
-            if (tokens.length > 1) {
-                fields.push({name: tokens[0], value: tokens[1]});   // TODO -- use header to add descriptive tooltip
-            }
+        // infoFields.forEach(function (f) {
+        //     var tokens = f.split("=");
+        //     if (tokens.length > 1) {
+        //         fields.push({name: tokens[0], value: tokens[1]});   // TODO -- use header to add descriptive tooltip
+        //     }
+        // });
+
+        Object.keys(info).forEach(function (key) {
+           fields.push({name: key, value: info[key]});
         });
 
 
         return fields;
 
-    }
+    };
+
+    Variant.prototype.getInfoObj = function(infoStr) {
+        var info = {};
+        infoStr.split(';').forEach(function(elem) {
+            var element = elem.split('=');
+            info[element[0]] = element[1];
+        });
+        return info;
+    };
+
+    Variant.prototype.calcHeterozygosity = function(ac, an){
+        var sum = 0;
+        an = parseInt(an);
+        var altFreqs = ac.split(',');
+        altFreqs.forEach(function (altFreq) {
+            var altFrac = parseInt(altFreq) / an;
+            sum += altFrac * altFrac;
+        });
+        return 1 - sum;
+    };
 
 
     return igv;
