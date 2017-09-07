@@ -4,6 +4,8 @@ import os
 import sys
 from flask import Flask, Response, request, abort, jsonify, render_template, url_for
 
+import pdb
+
 app = Flask(__name__)
 
 # default config values
@@ -112,7 +114,7 @@ def query_ucsc():
         return 'Either you have not enabled the UCSC library or you have \
 not installed MySQL-python.'
 
-    result = ''
+    results = []
 
     def reg2bins(beg, end):
         bin_list = []
@@ -163,20 +165,25 @@ AND bin in "+bin_str, (chrom, start, end))
         else:
             cur.execute("SELECT * FROM "+table+" WHERE chrom = %s", (chrom,))
 
+        #pdb.set_trace()
+
         for row in cur.fetchall():
-            result += str(row)
+            row_dict = {}
+            for name, value in zip(cur.description, row):
+                row_dict[name[0]] = value
+            results.append(row_dict)
 
     except MySQLdb.Error, e:
         try:
-            result = "MySQL Error [{}]: {}".format(e.args[0], e.args[1])
+            return "MySQL Error [{}]: {}".format(e.args[0], e.args[1])
         except IndexError:
-            result = "MySQL Error: {}".format(str(e))
+            return "MySQL Error: {}".format(str(e))
 
     finally:
         cur.close()
         db.close()
 
-    return result
+    return jsonify(results)
 
 @app.before_request
 def before_request():
