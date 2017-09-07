@@ -12,6 +12,11 @@ env/
 venv/
 ENV/
 
+# run files
+nohup.out
+error.log
+
+# private files
 allowed_emails.txt
 static/data/*
 static/alignments/

@@ -1,2 +1,3 @@
 requests==2.13.0
 Flask==0.12
+Flask-Cors==3.0.3

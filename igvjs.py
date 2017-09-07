@@ -17,6 +17,10 @@ app.config.update(dict(
 # override with values from _config.py
 app.config.from_object('_config')
 
+if app.config['ENABLE_CORS_REQUESTS']:
+    from flask_cors import CORS, cross_origin
+    CORS(app)
+
 if app.config['ENABLE_ALIGNMENT_SERVICE']:
     try:
         import pysam
