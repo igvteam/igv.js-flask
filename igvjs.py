@@ -1,9 +1,7 @@
 import requests
 import re
 import os
-import pysam
-import urllib
-import MySQLdb
+import sys
 from flask import Flask, Response, request, abort, jsonify, render_template, url_for
 
 app = Flask(__name__)
@@ -16,6 +14,21 @@ app.config.update(dict(
 ))
 # override with values from _config.py
 app.config.from_object('_config')
+
+if app.config['ENABLE_ALIGNMENT_SERVICE']:
+    try:
+        import pysam
+        from urllib import unquote
+    except ImportError:
+        print 'Alignments service is enabled but pysam is not installed. Please\
+install pysam (pip install pysam) if you wish to use the alignments service.'
+
+if app.config['ENABLE_UCSC_SERVICE']:
+    try:
+        import MySQLdb
+    except ImportError:
+        print 'UCSC service is enabled but MySQL-python is not installed. Please\
+install MySQL-python (pip install MySQL-python) if you wish to use the UCSC service.'
 
 seen_tokens = set()
 
@@ -62,6 +75,9 @@ def get_data_list(path):
 
 @app.route('/alignments')
 def alignments():
+    if 'pysam' not in sys.modules:
+        return 'Either you have not enabled the alignments service or you have \
+not installed pysam.'
     filename = request.args.get('file')
     if not filename:
         return "Please specify a filename."
@@ -73,7 +89,7 @@ def alignments():
 
     options = request.args.get("options")
     if options:
-        args.append(urllib.unquote(options))
+        args.append(unquote(options))
 
     reference = request.args.get('reference')
     if reference:
@@ -92,6 +108,9 @@ def alignments():
 
 @app.route('/ucsc')
 def query_ucsc():
+    if 'MySQLdb' not in sys.modules:
+        return 'Either you have not enabled the UCSC library or you have \
+not installed MySQL-python.'
 
     result = ''
 
