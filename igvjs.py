@@ -3,8 +3,7 @@ import re
 import os
 import sys
 from flask import Flask, Response, request, abort, jsonify, render_template, url_for
-
-import pdb
+from flask_compress import Compress
 
 app = Flask(__name__)
 
@@ -16,6 +15,8 @@ app.config.update(dict(
 ))
 # override with values from _config.py
 app.config.from_object('_config')
+
+Compress(app)
 
 if app.config['ENABLE_CORS_REQUESTS']:
     from flask_cors import CORS, cross_origin
@@ -168,8 +169,6 @@ AND bin in "+bin_str, (chrom, start, end))
 
         else:
             cur.execute("SELECT * FROM "+table+" WHERE chrom = %s", (chrom,))
-
-        #pdb.set_trace()
 
         for row in cur.fetchall():
             row_dict = {}

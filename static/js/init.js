@@ -28,15 +28,3 @@ function initBrowser() {
     browser = igv.createBrowser(div, options);
     igv.setupFlaskBrowser();
 }
-
-function testCors() {
-  igv.browser.loadTrack({
-      url: 'http://snorlax.ucsd.edu:8659/static/data/hipstr_genomewide/chr1/hipstr_calls_1_24.vcf.gz',
-      indexed: true,
-      indexURL: 'http://snorlax.ucsd.edu:8659/static/data/hipstr_genomewide/chr1/hipstr_calls_1_24.vcf.gz.tbi',
-      name: 'test_cors',
-      visibilityWindow: 100000, // 100 k
-      height: 500,
-      oauth: 'google'
-  });
-}
