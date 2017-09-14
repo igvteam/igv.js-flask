@@ -24,7 +24,7 @@ var igv = (function (igv) {
                 }
                 fulfill(data);
             }
-            igvxhr
+            igv.xhr
                 .loadJson(url, options)
                 .then(parseData)
                 .catch(reject);

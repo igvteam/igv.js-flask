@@ -18,5 +18,4 @@ error.log
 
 # private files
 allowed_emails.txt
-static/data/*
 static/alignments/

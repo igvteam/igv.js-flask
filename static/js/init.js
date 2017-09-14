@@ -27,4 +27,5 @@ function initBrowser() {
 
     browser = igv.createBrowser(div, options);
     igv.setupFlaskBrowser();
+    igv.browser.loadSampleInformation('static/misc/pedigree.fam')
 }

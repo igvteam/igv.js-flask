@@ -14,7 +14,7 @@ function initBrowserWithOAuth() {
   function updateSigninStatus(isSignedIn) {
 
       var user = gapi.auth2.getAuthInstance().currentUser.get();
-      oauth.google.access_token = user.getAuthResponse().access_token;
+      igv.oauth.google.access_token = user.getAuthResponse().access_token;
   }
 
   function initClient() {
@@ -27,7 +27,7 @@ function initBrowserWithOAuth() {
 
           var user = gapi.auth2.getAuthInstance().currentUser.get();
           if(user) {
-              oauth.google.access_token = user.getAuthResponse().access_token;
+              igv.oauth.google.access_token = user.getAuthResponse().access_token;
           }
 
           var $b = $("#signinbutton");
