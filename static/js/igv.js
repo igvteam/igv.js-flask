@@ -1,3 +1,1560 @@
+/* Module header based on https://github.com/umdjs/umd/blob/master/templates/returnExports.js
+ */
+
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define([], factory);
+    } else if (typeof module === 'object' && module.exports) {
+        // Node. Does not work with strict CommonJS, but
+        // only CommonJS-like environments that support module.exports,
+        // like Node.
+        module.exports = factory();
+    } else {
+        // Browser globals (root is window)
+        root.igv = factory();
+    }
+ }(this, function () {
+//
+//     // Just return a value to define the module export.
+//     // This example returns an object, but the module
+//     // can return a function as the exported value.
+//     return igv;
+//
+// }));
+
+
+
+//     Underscore.js 1.8.3
+//     http://underscorejs.org
+//     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+//     Underscore may be freely distributed under the MIT license.
+
+// Modified for encapsulation in igv module
+// * no exports
+// * no global definition
+// * noConflict not supported (as _ is encapsulated its not needed)
+
+
+// Create a safe reference to the Underscore object for use below.
+var _ = function (obj) {
+    if (obj instanceof _) return obj;
+    if (!(this instanceof _)) return new _(obj);
+    this._wrapped = obj;
+};
+
+(function () {
+
+    // Baseline setup
+    // --------------
+
+
+    // Save bytes in the minified (but not gzipped) version:
+    var ArrayProto = Array.prototype, ObjProto = Object.prototype, FuncProto = Function.prototype;
+
+    // Create quick reference variables for speed access to core prototypes.
+    var
+        push = ArrayProto.push,
+        slice = ArrayProto.slice,
+        toString = ObjProto.toString,
+        hasOwnProperty = ObjProto.hasOwnProperty;
+
+    // All **ECMAScript 5** native function implementations that we hope to use
+    // are declared here.
+    var
+        nativeIsArray = Array.isArray,
+        nativeKeys = Object.keys,
+        nativeBind = FuncProto.bind,
+        nativeCreate = Object.create;
+
+    // Naked function reference for surrogate-prototype-swapping.
+    var Ctor = function () {
+    };
+
+
+    // Current version.
+    _.VERSION = '1.8.3';
+
+    // Internal function that returns an efficient (for current engines) version
+    // of the passed-in callback, to be repeatedly applied in other Underscore
+    // functions.
+    var optimizeCb = function (func, context, argCount) {
+        if (context === void 0) return func;
+        switch (argCount == null ? 3 : argCount) {
+            case 1:
+                return function (value) {
+                    return func.call(context, value);
+                };
+            case 2:
+                return function (value, other) {
+                    return func.call(context, value, other);
+                };
+            case 3:
+                return function (value, index, collection) {
+                    return func.call(context, value, index, collection);
+                };
+            case 4:
+                return function (accumulator, value, index, collection) {
+                    return func.call(context, accumulator, value, index, collection);
+                };
+        }
+        return function () {
+            return func.apply(context, arguments);
+        };
+    };
+
+    // A mostly-internal function to generate callbacks that can be applied
+    // to each element in a collection, returning the desired result — either
+    // identity, an arbitrary callback, a property matcher, or a property accessor.
+    var cb = function (value, context, argCount) {
+        if (value == null) return _.identity;
+        if (_.isFunction(value)) return optimizeCb(value, context, argCount);
+        if (_.isObject(value)) return _.matcher(value);
+        return _.property(value);
+    };
+    _.iteratee = function (value, context) {
+        return cb(value, context, Infinity);
+    };
+
+    // An internal function for creating assigner functions.
+    var createAssigner = function (keysFunc, undefinedOnly) {
+        return function (obj) {
+            var length = arguments.length;
+            if (length < 2 || obj == null) return obj;
+            for (var index = 1; index < length; index++) {
+                var source = arguments[index],
+                    keys = keysFunc(source),
+                    l = keys.length;
+                for (var i = 0; i < l; i++) {
+                    var key = keys[i];
+                    if (!undefinedOnly || obj[key] === void 0) obj[key] = source[key];
+                }
+            }
+            return obj;
+        };
+    };
+
+    // An internal function for creating a new object that inherits from another.
+    var baseCreate = function (prototype) {
+        if (!_.isObject(prototype)) return {};
+        if (nativeCreate) return nativeCreate(prototype);
+        Ctor.prototype = prototype;
+        var result = new Ctor;
+        Ctor.prototype = null;
+        return result;
+    };
+
+    var property = function (key) {
+        return function (obj) {
+            return obj == null ? void 0 : obj[key];
+        };
+    };
+
+    // Helper for collection methods to determine whether a collection
+    // should be iterated as an array or as an object
+    // Related: http://people.mozilla.org/~jorendorff/es6-draft.html#sec-tolength
+    // Avoids a very nasty iOS 8 JIT bug on ARM-64. #2094
+    var MAX_ARRAY_INDEX = Math.pow(2, 53) - 1;
+    var getLength = property('length');
+    var isArrayLike = function (collection) {
+        var length = getLength(collection);
+        return typeof length == 'number' && length >= 0 && length <= MAX_ARRAY_INDEX;
+    };
+
+    // Collection Functions
+    // --------------------
+
+    // The cornerstone, an `each` implementation, aka `forEach`.
+    // Handles raw objects in addition to array-likes. Treats all
+    // sparse array-likes as if they were dense.
+    _.each = _.forEach = function (obj, iteratee, context) {
+        iteratee = optimizeCb(iteratee, context);
+        var i, length;
+        if (isArrayLike(obj)) {
+            for (i = 0, length = obj.length; i < length; i++) {
+                iteratee(obj[i], i, obj);
+            }
+        } else {
+            var keys = _.keys(obj);
+            for (i = 0, length = keys.length; i < length; i++) {
+                iteratee(obj[keys[i]], keys[i], obj);
+            }
+        }
+        return obj;
+    };
+
+    // Return the results of applying the iteratee to each element.
+    _.map = _.collect = function (obj, iteratee, context) {
+        iteratee = cb(iteratee, context);
+        var keys = !isArrayLike(obj) && _.keys(obj),
+            length = (keys || obj).length,
+            results = Array(length);
+        for (var index = 0; index < length; index++) {
+            var currentKey = keys ? keys[index] : index;
+            results[index] = iteratee(obj[currentKey], currentKey, obj);
+        }
+        return results;
+    };
+
+    // Create a reducing function iterating left or right.
+    function createReduce(dir) {
+        // Optimized iterator function as using arguments.length
+        // in the main function will deoptimize the, see #1991.
+        function iterator(obj, iteratee, memo, keys, index, length) {
+            for (; index >= 0 && index < length; index += dir) {
+                var currentKey = keys ? keys[index] : index;
+                memo = iteratee(memo, obj[currentKey], currentKey, obj);
+            }
+            return memo;
+        }
+
+        return function (obj, iteratee, memo, context) {
+            iteratee = optimizeCb(iteratee, context, 4);
+            var keys = !isArrayLike(obj) && _.keys(obj),
+                length = (keys || obj).length,
+                index = dir > 0 ? 0 : length - 1;
+            // Determine the initial value if none is provided.
+            if (arguments.length < 3) {
+                memo = obj[keys ? keys[index] : index];
+                index += dir;
+            }
+            return iterator(obj, iteratee, memo, keys, index, length);
+        };
+    }
+
+    // **Reduce** builds up a single result from a list of values, aka `inject`,
+    // or `foldl`.
+    _.reduce = _.foldl = _.inject = createReduce(1);
+
+    // The right-associative version of reduce, also known as `foldr`.
+    _.reduceRight = _.foldr = createReduce(-1);
+
+    // Return the first value which passes a truth test. Aliased as `detect`.
+    _.find = _.detect = function (obj, predicate, context) {
+        var key;
+        if (isArrayLike(obj)) {
+            key = _.findIndex(obj, predicate, context);
+        } else {
+            key = _.findKey(obj, predicate, context);
+        }
+        if (key !== void 0 && key !== -1) return obj[key];
+    };
+
+    // Return all the elements that pass a truth test.
+    // Aliased as `select`.
+    _.filter = _.select = function (obj, predicate, context) {
+        var results = [];
+        predicate = cb(predicate, context);
+        _.each(obj, function (value, index, list) {
+            if (predicate(value, index, list)) results.push(value);
+        });
+        return results;
+    };
+
+    // Return all the elements for which a truth test fails.
+    _.reject = function (obj, predicate, context) {
+        return _.filter(obj, _.negate(cb(predicate)), context);
+    };
+
+    // Determine whether all of the elements match a truth test.
+    // Aliased as `all`.
+    _.every = _.all = function (obj, predicate, context) {
+        predicate = cb(predicate, context);
+        var keys = !isArrayLike(obj) && _.keys(obj),
+            length = (keys || obj).length;
+        for (var index = 0; index < length; index++) {
+            var currentKey = keys ? keys[index] : index;
+            if (!predicate(obj[currentKey], currentKey, obj)) return false;
+        }
+        return true;
+    };
+
+    // Determine if at least one element in the object matches a truth test.
+    // Aliased as `any`.
+    _.some = _.any = function (obj, predicate, context) {
+        predicate = cb(predicate, context);
+        var keys = !isArrayLike(obj) && _.keys(obj),
+            length = (keys || obj).length;
+        for (var index = 0; index < length; index++) {
+            var currentKey = keys ? keys[index] : index;
+            if (predicate(obj[currentKey], currentKey, obj)) return true;
+        }
+        return false;
+    };
+
+    // Determine if the array or object contains a given item (using `===`).
+    // Aliased as `includes` and `include`.
+    _.contains = _.includes = _.include = function (obj, item, fromIndex, guard) {
+        if (!isArrayLike(obj)) obj = _.values(obj);
+        if (typeof fromIndex != 'number' || guard) fromIndex = 0;
+        return _.indexOf(obj, item, fromIndex) >= 0;
+    };
+
+    // Invoke a method (with arguments) on every item in a collection.
+    _.invoke = function (obj, method) {
+        var args = slice.call(arguments, 2);
+        var isFunc = _.isFunction(method);
+        return _.map(obj, function (value) {
+            var func = isFunc ? method : value[method];
+            return func == null ? func : func.apply(value, args);
+        });
+    };
+
+    // Convenience version of a common use case of `map`: fetching a property.
+    _.pluck = function (obj, key) {
+        return _.map(obj, _.property(key));
+    };
+
+    // Convenience version of a common use case of `filter`: selecting only objects
+    // containing specific `key:value` pairs.
+    _.where = function (obj, attrs) {
+        return _.filter(obj, _.matcher(attrs));
+    };
+
+    // Convenience version of a common use case of `find`: getting the first object
+    // containing specific `key:value` pairs.
+    _.findWhere = function (obj, attrs) {
+        return _.find(obj, _.matcher(attrs));
+    };
+
+    // Return the maximum element (or element-based computation).
+    _.max = function (obj, iteratee, context) {
+        var result = -Infinity, lastComputed = -Infinity,
+            value, computed;
+        if (iteratee == null && obj != null) {
+            obj = isArrayLike(obj) ? obj : _.values(obj);
+            for (var i = 0, length = obj.length; i < length; i++) {
+                value = obj[i];
+                if (value > result) {
+                    result = value;
+                }
+            }
+        } else {
+            iteratee = cb(iteratee, context);
+            _.each(obj, function (value, index, list) {
+                computed = iteratee(value, index, list);
+                if (computed > lastComputed || computed === -Infinity && result === -Infinity) {
+                    result = value;
+                    lastComputed = computed;
+                }
+            });
+        }
+        return result;
+    };
+
+    // Return the minimum element (or element-based computation).
+    _.min = function (obj, iteratee, context) {
+        var result = Infinity, lastComputed = Infinity,
+            value, computed;
+        if (iteratee == null && obj != null) {
+            obj = isArrayLike(obj) ? obj : _.values(obj);
+            for (var i = 0, length = obj.length; i < length; i++) {
+                value = obj[i];
+                if (value < result) {
+                    result = value;
+                }
+            }
+        } else {
+            iteratee = cb(iteratee, context);
+            _.each(obj, function (value, index, list) {
+                computed = iteratee(value, index, list);
+                if (computed < lastComputed || computed === Infinity && result === Infinity) {
+                    result = value;
+                    lastComputed = computed;
+                }
+            });
+        }
+        return result;
+    };
+
+    // Shuffle a collection, using the modern version of the
+    // [Fisher-Yates shuffle](http://en.wikipedia.org/wiki/Fisher–Yates_shuffle).
+    _.shuffle = function (obj) {
+        var set = isArrayLike(obj) ? obj : _.values(obj);
+        var length = set.length;
+        var shuffled = Array(length);
+        for (var index = 0, rand; index < length; index++) {
+            rand = _.random(0, index);
+            if (rand !== index) shuffled[index] = shuffled[rand];
+            shuffled[rand] = set[index];
+        }
+        return shuffled;
+    };
+
+    // Sample **n** random values from a collection.
+    // If **n** is not specified, returns a single random element.
+    // The internal `guard` argument allows it to work with `map`.
+    _.sample = function (obj, n, guard) {
+        if (n == null || guard) {
+            if (!isArrayLike(obj)) obj = _.values(obj);
+            return obj[_.random(obj.length - 1)];
+        }
+        return _.shuffle(obj).slice(0, Math.max(0, n));
+    };
+
+    // Sort the object's values by a criterion produced by an iteratee.
+    _.sortBy = function (obj, iteratee, context) {
+        iteratee = cb(iteratee, context);
+        return _.pluck(_.map(obj, function (value, index, list) {
+            return {
+                value: value,
+                index: index,
+                criteria: iteratee(value, index, list)
+            };
+        }).sort(function (left, right) {
+            var a = left.criteria;
+            var b = right.criteria;
+            if (a !== b) {
+                if (a > b || a === void 0) return 1;
+                if (a < b || b === void 0) return -1;
+            }
+            return left.index - right.index;
+        }), 'value');
+    };
+
+    // An internal function used for aggregate "group by" operations.
+    var group = function (behavior) {
+        return function (obj, iteratee, context) {
+            var result = {};
+            iteratee = cb(iteratee, context);
+            _.each(obj, function (value, index) {
+                var key = iteratee(value, index, obj);
+                behavior(result, value, key);
+            });
+            return result;
+        };
+    };
+
+    // Groups the object's values by a criterion. Pass either a string attribute
+    // to group by, or a function that returns the criterion.
+    _.groupBy = group(function (result, value, key) {
+        if (_.has(result, key)) result[key].push(value); else result[key] = [value];
+    });
+
+    // Indexes the object's values by a criterion, similar to `groupBy`, but for
+    // when you know that your index values will be unique.
+    _.indexBy = group(function (result, value, key) {
+        result[key] = value;
+    });
+
+    // Counts instances of an object that group by a certain criterion. Pass
+    // either a string attribute to count by, or a function that returns the
+    // criterion.
+    _.countBy = group(function (result, value, key) {
+        if (_.has(result, key)) result[key]++; else result[key] = 1;
+    });
+
+    // Safely create a real, live array from anything iterable.
+    _.toArray = function (obj) {
+        if (!obj) return [];
+        if (_.isArray(obj)) return slice.call(obj);
+        if (isArrayLike(obj)) return _.map(obj, _.identity);
+        return _.values(obj);
+    };
+
+    // Return the number of elements in an object.
+    _.size = function (obj) {
+        if (obj == null) return 0;
+        return isArrayLike(obj) ? obj.length : _.keys(obj).length;
+    };
+
+    // Split a collection into two arrays: one whose elements all satisfy the given
+    // predicate, and one whose elements all do not satisfy the predicate.
+    _.partition = function (obj, predicate, context) {
+        predicate = cb(predicate, context);
+        var pass = [], fail = [];
+        _.each(obj, function (value, key, obj) {
+            (predicate(value, key, obj) ? pass : fail).push(value);
+        });
+        return [pass, fail];
+    };
+
+    // Array Functions
+    // ---------------
+
+    // Get the first element of an array. Passing **n** will return the first N
+    // values in the array. Aliased as `head` and `take`. The **guard** check
+    // allows it to work with `_.map`.
+    _.first = _.head = _.take = function (array, n, guard) {
+        if (array == null) return void 0;
+        if (n == null || guard) return array[0];
+        return _.initial(array, array.length - n);
+    };
+
+    // Returns everything but the last entry of the array. Especially useful on
+    // the arguments object. Passing **n** will return all the values in
+    // the array, excluding the last N.
+    _.initial = function (array, n, guard) {
+        return slice.call(array, 0, Math.max(0, array.length - (n == null || guard ? 1 : n)));
+    };
+
+    // Get the last element of an array. Passing **n** will return the last N
+    // values in the array.
+    _.last = function (array, n, guard) {
+        if (array == null) return void 0;
+        if (n == null || guard) return array[array.length - 1];
+        return _.rest(array, Math.max(0, array.length - n));
+    };
+
+    // Returns everything but the first entry of the array. Aliased as `tail` and `drop`.
+    // Especially useful on the arguments object. Passing an **n** will return
+    // the rest N values in the array.
+    _.rest = _.tail = _.drop = function (array, n, guard) {
+        return slice.call(array, n == null || guard ? 1 : n);
+    };
+
+    // Trim out all falsy values from an array.
+    _.compact = function (array) {
+        return _.filter(array, _.identity);
+    };
+
+    // Internal implementation of a recursive `flatten` function.
+    var flatten = function (input, shallow, strict, startIndex) {
+        var output = [], idx = 0;
+        for (var i = startIndex || 0, length = getLength(input); i < length; i++) {
+            var value = input[i];
+            if (isArrayLike(value) && (_.isArray(value) || _.isArguments(value))) {
+                //flatten current level of array or arguments object
+                if (!shallow) value = flatten(value, shallow, strict);
+                var j = 0, len = value.length;
+                output.length += len;
+                while (j < len) {
+                    output[idx++] = value[j++];
+                }
+            } else if (!strict) {
+                output[idx++] = value;
+            }
+        }
+        return output;
+    };
+
+    // Flatten out an array, either recursively (by default), or just one level.
+    _.flatten = function (array, shallow) {
+        return flatten(array, shallow, false);
+    };
+
+    // Return a version of the array that does not contain the specified value(s).
+    _.without = function (array) {
+        return _.difference(array, slice.call(arguments, 1));
+    };
+
+    // Produce a duplicate-free version of the array. If the array has already
+    // been sorted, you have the option of using a faster algorithm.
+    // Aliased as `unique`.
+    _.uniq = _.unique = function (array, isSorted, iteratee, context) {
+        if (!_.isBoolean(isSorted)) {
+            context = iteratee;
+            iteratee = isSorted;
+            isSorted = false;
+        }
+        if (iteratee != null) iteratee = cb(iteratee, context);
+        var result = [];
+        var seen = [];
+        for (var i = 0, length = getLength(array); i < length; i++) {
+            var value = array[i],
+                computed = iteratee ? iteratee(value, i, array) : value;
+            if (isSorted) {
+                if (!i || seen !== computed) result.push(value);
+                seen = computed;
+            } else if (iteratee) {
+                if (!_.contains(seen, computed)) {
+                    seen.push(computed);
+                    result.push(value);
+                }
+            } else if (!_.contains(result, value)) {
+                result.push(value);
+            }
+        }
+        return result;
+    };
+
+    // Produce an array that contains the union: each distinct element from all of
+    // the passed-in arrays.
+    _.union = function () {
+        return _.uniq(flatten(arguments, true, true));
+    };
+
+    // Produce an array that contains every item shared between all the
+    // passed-in arrays.
+    _.intersection = function (array) {
+        var result = [];
+        var argsLength = arguments.length;
+        for (var i = 0, length = getLength(array); i < length; i++) {
+            var item = array[i];
+            if (_.contains(result, item)) continue;
+            for (var j = 1; j < argsLength; j++) {
+                if (!_.contains(arguments[j], item)) break;
+            }
+            if (j === argsLength) result.push(item);
+        }
+        return result;
+    };
+
+    // Take the difference between one array and a number of other arrays.
+    // Only the elements present in just the first array will remain.
+    _.difference = function (array) {
+        var rest = flatten(arguments, true, true, 1);
+        return _.filter(array, function (value) {
+            return !_.contains(rest, value);
+        });
+    };
+
+    // Zip together multiple lists into a single array -- elements that share
+    // an index go together.
+    _.zip = function () {
+        return _.unzip(arguments);
+    };
+
+    // Complement of _.zip. Unzip accepts an array of arrays and groups
+    // each array's elements on shared indices
+    _.unzip = function (array) {
+        var length = array && _.max(array, getLength).length || 0;
+        var result = Array(length);
+
+        for (var index = 0; index < length; index++) {
+            result[index] = _.pluck(array, index);
+        }
+        return result;
+    };
+
+    // Converts lists into objects. Pass either a single array of `[key, value]`
+    // pairs, or two parallel arrays of the same length -- one of keys, and one of
+    // the corresponding values.
+    _.object = function (list, values) {
+        var result = {};
+        for (var i = 0, length = getLength(list); i < length; i++) {
+            if (values) {
+                result[list[i]] = values[i];
+            } else {
+                result[list[i][0]] = list[i][1];
+            }
+        }
+        return result;
+    };
+
+    // Generator function to create the findIndex and findLastIndex functions
+    function createPredicateIndexFinder(dir) {
+        return function (array, predicate, context) {
+            predicate = cb(predicate, context);
+            var length = getLength(array);
+            var index = dir > 0 ? 0 : length - 1;
+            for (; index >= 0 && index < length; index += dir) {
+                if (predicate(array[index], index, array)) return index;
+            }
+            return -1;
+        };
+    }
+
+    // Returns the first index on an array-like that passes a predicate test
+    _.findIndex = createPredicateIndexFinder(1);
+    _.findLastIndex = createPredicateIndexFinder(-1);
+
+    // Use a comparator function to figure out the smallest index at which
+    // an object should be inserted so as to maintain order. Uses binary search.
+    _.sortedIndex = function (array, obj, iteratee, context) {
+        iteratee = cb(iteratee, context, 1);
+        var value = iteratee(obj);
+        var low = 0, high = getLength(array);
+        while (low < high) {
+            var mid = Math.floor((low + high) / 2);
+            if (iteratee(array[mid]) < value) low = mid + 1; else high = mid;
+        }
+        return low;
+    };
+
+    // Generator function to create the indexOf and lastIndexOf functions
+    function createIndexFinder(dir, predicateFind, sortedIndex) {
+        return function (array, item, idx) {
+            var i = 0, length = getLength(array);
+            if (typeof idx == 'number') {
+                if (dir > 0) {
+                    i = idx >= 0 ? idx : Math.max(idx + length, i);
+                } else {
+                    length = idx >= 0 ? Math.min(idx + 1, length) : idx + length + 1;
+                }
+            } else if (sortedIndex && idx && length) {
+                idx = sortedIndex(array, item);
+                return array[idx] === item ? idx : -1;
+            }
+            if (item !== item) {
+                idx = predicateFind(slice.call(array, i, length), _.isNaN);
+                return idx >= 0 ? idx + i : -1;
+            }
+            for (idx = dir > 0 ? i : length - 1; idx >= 0 && idx < length; idx += dir) {
+                if (array[idx] === item) return idx;
+            }
+            return -1;
+        };
+    }
+
+    // Return the position of the first occurrence of an item in an array,
+    // or -1 if the item is not included in the array.
+    // If the array is large and already in sort order, pass `true`
+    // for **isSorted** to use binary search.
+    _.indexOf = createIndexFinder(1, _.findIndex, _.sortedIndex);
+    _.lastIndexOf = createIndexFinder(-1, _.findLastIndex);
+
+    // Generate an integer Array containing an arithmetic progression. A port of
+    // the native Python `range()` function. See
+    // [the Python documentation](http://docs.python.org/library/functions.html#range).
+    _.range = function (start, stop, step) {
+        if (stop == null) {
+            stop = start || 0;
+            start = 0;
+        }
+        step = step || 1;
+
+        var length = Math.max(Math.ceil((stop - start) / step), 0);
+        var range = Array(length);
+
+        for (var idx = 0; idx < length; idx++, start += step) {
+            range[idx] = start;
+        }
+
+        return range;
+    };
+
+    // Function (ahem) Functions
+    // ------------------
+
+    // Determines whether to execute a function as a constructor
+    // or a normal function with the provided arguments
+    var executeBound = function (sourceFunc, boundFunc, context, callingContext, args) {
+        if (!(callingContext instanceof boundFunc)) return sourceFunc.apply(context, args);
+        var self = baseCreate(sourceFunc.prototype);
+        var result = sourceFunc.apply(self, args);
+        if (_.isObject(result)) return result;
+        return self;
+    };
+
+    // Create a function bound to a given object (assigning `this`, and arguments,
+    // optionally). Delegates to **ECMAScript 5**'s native `Function.bind` if
+    // available.
+    _.bind = function (func, context) {
+        if (nativeBind && func.bind === nativeBind) return nativeBind.apply(func, slice.call(arguments, 1));
+        if (!_.isFunction(func)) throw new TypeError('Bind must be called on a function');
+        var args = slice.call(arguments, 2);
+        var bound = function () {
+            return executeBound(func, bound, context, this, args.concat(slice.call(arguments)));
+        };
+        return bound;
+    };
+
+    // Partially apply a function by creating a version that has had some of its
+    // arguments pre-filled, without changing its dynamic `this` context. _ acts
+    // as a placeholder, allowing any combination of arguments to be pre-filled.
+    _.partial = function (func) {
+        var boundArgs = slice.call(arguments, 1);
+        var bound = function () {
+            var position = 0, length = boundArgs.length;
+            var args = Array(length);
+            for (var i = 0; i < length; i++) {
+                args[i] = boundArgs[i] === _ ? arguments[position++] : boundArgs[i];
+            }
+            while (position < arguments.length) args.push(arguments[position++]);
+            return executeBound(func, bound, this, this, args);
+        };
+        return bound;
+    };
+
+    // Bind a number of an object's methods to that object. Remaining arguments
+    // are the method names to be bound. Useful for ensuring that all callbacks
+    // defined on an object belong to it.
+    _.bindAll = function (obj) {
+        var i, length = arguments.length, key;
+        if (length <= 1) throw new Error('bindAll must be passed function names');
+        for (i = 1; i < length; i++) {
+            key = arguments[i];
+            obj[key] = _.bind(obj[key], obj);
+        }
+        return obj;
+    };
+
+    // Memoize an expensive function by storing its results.
+    _.memoize = function (func, hasher) {
+        var memoize = function (key) {
+            var cache = memoize.cache;
+            var address = '' + (hasher ? hasher.apply(this, arguments) : key);
+            if (!_.has(cache, address)) cache[address] = func.apply(this, arguments);
+            return cache[address];
+        };
+        memoize.cache = {};
+        return memoize;
+    };
+
+    // Delays a function for the given number of milliseconds, and then calls
+    // it with the arguments supplied.
+    _.delay = function (func, wait) {
+        var args = slice.call(arguments, 2);
+        return setTimeout(function () {
+            return func.apply(null, args);
+        }, wait);
+    };
+
+    // Defers a function, scheduling it to run after the current call stack has
+    // cleared.
+    _.defer = _.partial(_.delay, _, 1);
+
+    // Returns a function, that, when invoked, will only be triggered at most once
+    // during a given window of time. Normally, the throttled function will run
+    // as much as it can, without ever going more than once per `wait` duration;
+    // but if you'd like to disable the execution on the leading edge, pass
+    // `{leading: false}`. To disable execution on the trailing edge, ditto.
+    _.throttle = function (func, wait, options) {
+        var context, args, result;
+        var timeout = null;
+        var previous = 0;
+        if (!options) options = {};
+        var later = function () {
+            previous = options.leading === false ? 0 : _.now();
+            timeout = null;
+            result = func.apply(context, args);
+            if (!timeout) context = args = null;
+        };
+        return function () {
+            var now = _.now();
+            if (!previous && options.leading === false) previous = now;
+            var remaining = wait - (now - previous);
+            context = this;
+            args = arguments;
+            if (remaining <= 0 || remaining > wait) {
+                if (timeout) {
+                    clearTimeout(timeout);
+                    timeout = null;
+                }
+                previous = now;
+                result = func.apply(context, args);
+                if (!timeout) context = args = null;
+            } else if (!timeout && options.trailing !== false) {
+                timeout = setTimeout(later, remaining);
+            }
+            return result;
+        };
+    };
+
+    // Returns a function, that, as long as it continues to be invoked, will not
+    // be triggered. The function will be called after it stops being called for
+    // N milliseconds. If `immediate` is passed, trigger the function on the
+    // leading edge, instead of the trailing.
+    _.debounce = function (func, wait, immediate) {
+        var timeout, args, context, timestamp, result;
+
+        var later = function () {
+            var last = _.now() - timestamp;
+
+            if (last < wait && last >= 0) {
+                timeout = setTimeout(later, wait - last);
+            } else {
+                timeout = null;
+                if (!immediate) {
+                    result = func.apply(context, args);
+                    if (!timeout) context = args = null;
+                }
+            }
+        };
+
+        return function () {
+            context = this;
+            args = arguments;
+            timestamp = _.now();
+            var callNow = immediate && !timeout;
+            if (!timeout) timeout = setTimeout(later, wait);
+            if (callNow) {
+                result = func.apply(context, args);
+                context = args = null;
+            }
+
+            return result;
+        };
+    };
+
+    // Returns the first function passed as an argument to the second,
+    // allowing you to adjust arguments, run code before and after, and
+    // conditionally execute the original function.
+    _.wrap = function (func, wrapper) {
+        return _.partial(wrapper, func);
+    };
+
+    // Returns a negated version of the passed-in predicate.
+    _.negate = function (predicate) {
+        return function () {
+            return !predicate.apply(this, arguments);
+        };
+    };
+
+    // Returns a function that is the composition of a list of functions, each
+    // consuming the return value of the function that follows.
+    _.compose = function () {
+        var args = arguments;
+        var start = args.length - 1;
+        return function () {
+            var i = start;
+            var result = args[start].apply(this, arguments);
+            while (i--) result = args[i].call(this, result);
+            return result;
+        };
+    };
+
+    // Returns a function that will only be executed on and after the Nth call.
+    _.after = function (times, func) {
+        return function () {
+            if (--times < 1) {
+                return func.apply(this, arguments);
+            }
+        };
+    };
+
+    // Returns a function that will only be executed up to (but not including) the Nth call.
+    _.before = function (times, func) {
+        var memo;
+        return function () {
+            if (--times > 0) {
+                memo = func.apply(this, arguments);
+            }
+            if (times <= 1) func = null;
+            return memo;
+        };
+    };
+
+    // Returns a function that will be executed at most one time, no matter how
+    // often you call it. Useful for lazy initialization.
+    _.once = _.partial(_.before, 2);
+
+    // Object Functions
+    // ----------------
+
+    // Keys in IE < 9 that won't be iterated by `for key in ...` and thus missed.
+    var hasEnumBug = !{toString: null}.propertyIsEnumerable('toString');
+    var nonEnumerableProps = ['valueOf', 'isPrototypeOf', 'toString',
+        'propertyIsEnumerable', 'hasOwnProperty', 'toLocaleString'];
+
+    function collectNonEnumProps(obj, keys) {
+        var nonEnumIdx = nonEnumerableProps.length;
+        var constructor = obj.constructor;
+        var proto = (_.isFunction(constructor) && constructor.prototype) || ObjProto;
+
+        // Constructor is a special case.
+        var prop = 'constructor';
+        if (_.has(obj, prop) && !_.contains(keys, prop)) keys.push(prop);
+
+        while (nonEnumIdx--) {
+            prop = nonEnumerableProps[nonEnumIdx];
+            if (prop in obj && obj[prop] !== proto[prop] && !_.contains(keys, prop)) {
+                keys.push(prop);
+            }
+        }
+    }
+
+    // Retrieve the names of an object's own properties.
+    // Delegates to **ECMAScript 5**'s native `Object.keys`
+    _.keys = function (obj) {
+        if (!_.isObject(obj)) return [];
+        if (nativeKeys) return nativeKeys(obj);
+        var keys = [];
+        for (var key in obj) if (_.has(obj, key)) keys.push(key);
+        // Ahem, IE < 9.
+        if (hasEnumBug) collectNonEnumProps(obj, keys);
+        return keys;
+    };
+
+    // Retrieve all the property names of an object.
+    _.allKeys = function (obj) {
+        if (!_.isObject(obj)) return [];
+        var keys = [];
+        for (var key in obj) keys.push(key);
+        // Ahem, IE < 9.
+        if (hasEnumBug) collectNonEnumProps(obj, keys);
+        return keys;
+    };
+
+    // Retrieve the values of an object's properties.
+    _.values = function (obj) {
+        var keys = _.keys(obj);
+        var length = keys.length;
+        var values = Array(length);
+        for (var i = 0; i < length; i++) {
+            values[i] = obj[keys[i]];
+        }
+        return values;
+    };
+
+    // Returns the results of applying the iteratee to each element of the object
+    // In contrast to _.map it returns an object
+    _.mapObject = function (obj, iteratee, context) {
+        iteratee = cb(iteratee, context);
+        var keys = _.keys(obj),
+            length = keys.length,
+            results = {},
+            currentKey;
+        for (var index = 0; index < length; index++) {
+            currentKey = keys[index];
+            results[currentKey] = iteratee(obj[currentKey], currentKey, obj);
+        }
+        return results;
+    };
+
+    // Convert an object into a list of `[key, value]` pairs.
+    _.pairs = function (obj) {
+        var keys = _.keys(obj);
+        var length = keys.length;
+        var pairs = Array(length);
+        for (var i = 0; i < length; i++) {
+            pairs[i] = [keys[i], obj[keys[i]]];
+        }
+        return pairs;
+    };
+
+    // Invert the keys and values of an object. The values must be serializable.
+    _.invert = function (obj) {
+        var result = {};
+        var keys = _.keys(obj);
+        for (var i = 0, length = keys.length; i < length; i++) {
+            result[obj[keys[i]]] = keys[i];
+        }
+        return result;
+    };
+
+    // Return a sorted list of the function names available on the object.
+    // Aliased as `methods`
+    _.functions = _.methods = function (obj) {
+        var names = [];
+        for (var key in obj) {
+            if (_.isFunction(obj[key])) names.push(key);
+        }
+        return names.sort();
+    };
+
+    // Extend a given object with all the properties in passed-in object(s).
+    _.extend = createAssigner(_.allKeys);
+
+    // Assigns a given object with all the own properties in the passed-in object(s)
+    // (https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object/assign)
+    _.extendOwn = _.assign = createAssigner(_.keys);
+
+    // Returns the first key on an object that passes a predicate test
+    _.findKey = function (obj, predicate, context) {
+        predicate = cb(predicate, context);
+        var keys = _.keys(obj), key;
+        for (var i = 0, length = keys.length; i < length; i++) {
+            key = keys[i];
+            if (predicate(obj[key], key, obj)) return key;
+        }
+    };
+
+    // Return a copy of the object only containing the whitelisted properties.
+    _.pick = function (object, oiteratee, context) {
+        var result = {}, obj = object, iteratee, keys;
+        if (obj == null) return result;
+        if (_.isFunction(oiteratee)) {
+            keys = _.allKeys(obj);
+            iteratee = optimizeCb(oiteratee, context);
+        } else {
+            keys = flatten(arguments, false, false, 1);
+            iteratee = function (value, key, obj) {
+                return key in obj;
+            };
+            obj = Object(obj);
+        }
+        for (var i = 0, length = keys.length; i < length; i++) {
+            var key = keys[i];
+            var value = obj[key];
+            if (iteratee(value, key, obj)) result[key] = value;
+        }
+        return result;
+    };
+
+    // Return a copy of the object without the blacklisted properties.
+    _.omit = function (obj, iteratee, context) {
+        if (_.isFunction(iteratee)) {
+            iteratee = _.negate(iteratee);
+        } else {
+            var keys = _.map(flatten(arguments, false, false, 1), String);
+            iteratee = function (value, key) {
+                return !_.contains(keys, key);
+            };
+        }
+        return _.pick(obj, iteratee, context);
+    };
+
+    // Fill in a given object with default properties.
+    _.defaults = createAssigner(_.allKeys, true);
+
+    // Creates an object that inherits from the given prototype object.
+    // If additional properties are provided then they will be added to the
+    // created object.
+    _.create = function (prototype, props) {
+        var result = baseCreate(prototype);
+        if (props) _.extendOwn(result, props);
+        return result;
+    };
+
+    // Create a (shallow-cloned) duplicate of an object.
+    _.clone = function (obj) {
+        if (!_.isObject(obj)) return obj;
+        return _.isArray(obj) ? obj.slice() : _.extend({}, obj);
+    };
+
+    // Invokes interceptor with the obj, and then returns obj.
+    // The primary purpose of this method is to "tap into" a method chain, in
+    // order to perform operations on intermediate results within the chain.
+    _.tap = function (obj, interceptor) {
+        interceptor(obj);
+        return obj;
+    };
+
+    // Returns whether an object has a given set of `key:value` pairs.
+    _.isMatch = function (object, attrs) {
+        var keys = _.keys(attrs), length = keys.length;
+        if (object == null) return !length;
+        var obj = Object(object);
+        for (var i = 0; i < length; i++) {
+            var key = keys[i];
+            if (attrs[key] !== obj[key] || !(key in obj)) return false;
+        }
+        return true;
+    };
+
+
+    // Internal recursive comparison function for `isEqual`.
+    var eq = function (a, b, aStack, bStack) {
+        // Identical objects are equal. `0 === -0`, but they aren't identical.
+        // See the [Harmony `egal` proposal](http://wiki.ecmascript.org/doku.php?id=harmony:egal).
+        if (a === b) return a !== 0 || 1 / a === 1 / b;
+        // A strict comparison is necessary because `null == undefined`.
+        if (a == null || b == null) return a === b;
+        // Unwrap any wrapped objects.
+        if (a instanceof _) a = a._wrapped;
+        if (b instanceof _) b = b._wrapped;
+        // Compare `[[Class]]` names.
+        var className = toString.call(a);
+        if (className !== toString.call(b)) return false;
+        switch (className) {
+            // Strings, numbers, regular expressions, dates, and booleans are compared by value.
+            case '[object RegExp]':
+            // RegExps are coerced to strings for comparison (Note: '' + /a/i === '/a/i')
+            case '[object String]':
+                // Primitives and their corresponding object wrappers are equivalent; thus, `"5"` is
+                // equivalent to `new String("5")`.
+                return '' + a === '' + b;
+            case '[object Number]':
+                // `NaN`s are equivalent, but non-reflexive.
+                // Object(NaN) is equivalent to NaN
+                if (+a !== +a) return +b !== +b;
+                // An `egal` comparison is performed for other numeric values.
+                return +a === 0 ? 1 / +a === 1 / b : +a === +b;
+            case '[object Date]':
+            case '[object Boolean]':
+                // Coerce dates and booleans to numeric primitive values. Dates are compared by their
+                // millisecond representations. Note that invalid dates with millisecond representations
+                // of `NaN` are not equivalent.
+                return +a === +b;
+        }
+
+        var areArrays = className === '[object Array]';
+        if (!areArrays) {
+            if (typeof a != 'object' || typeof b != 'object') return false;
+
+            // Objects with different constructors are not equivalent, but `Object`s or `Array`s
+            // from different frames are.
+            var aCtor = a.constructor, bCtor = b.constructor;
+            if (aCtor !== bCtor && !(_.isFunction(aCtor) && aCtor instanceof aCtor &&
+                _.isFunction(bCtor) && bCtor instanceof bCtor)
+                && ('constructor' in a && 'constructor' in b)) {
+                return false;
+            }
+        }
+        // Assume equality for cyclic structures. The algorithm for detecting cyclic
+        // structures is adapted from ES 5.1 section 15.12.3, abstract operation `JO`.
+
+        // Initializing stack of traversed objects.
+        // It's done here since we only need them for objects and arrays comparison.
+        aStack = aStack || [];
+        bStack = bStack || [];
+        var length = aStack.length;
+        while (length--) {
+            // Linear search. Performance is inversely proportional to the number of
+            // unique nested structures.
+            if (aStack[length] === a) return bStack[length] === b;
+        }
+
+        // Add the first object to the stack of traversed objects.
+        aStack.push(a);
+        bStack.push(b);
+
+        // Recursively compare objects and arrays.
+        if (areArrays) {
+            // Compare array lengths to determine if a deep comparison is necessary.
+            length = a.length;
+            if (length !== b.length) return false;
+            // Deep compare the contents, ignoring non-numeric properties.
+            while (length--) {
+                if (!eq(a[length], b[length], aStack, bStack)) return false;
+            }
+        } else {
+            // Deep compare objects.
+            var keys = _.keys(a), key;
+            length = keys.length;
+            // Ensure that both objects contain the same number of properties before comparing deep equality.
+            if (_.keys(b).length !== length) return false;
+            while (length--) {
+                // Deep compare each member
+                key = keys[length];
+                if (!(_.has(b, key) && eq(a[key], b[key], aStack, bStack))) return false;
+            }
+        }
+        // Remove the first object from the stack of traversed objects.
+        aStack.pop();
+        bStack.pop();
+        return true;
+    };
+
+    // Perform a deep comparison to check if two objects are equal.
+    _.isEqual = function (a, b) {
+        return eq(a, b);
+    };
+
+    // Is a given array, string, or object empty?
+    // An "empty" object has no enumerable own-properties.
+    _.isEmpty = function (obj) {
+        if (obj == null) return true;
+        if (isArrayLike(obj) && (_.isArray(obj) || _.isString(obj) || _.isArguments(obj))) return obj.length === 0;
+        return _.keys(obj).length === 0;
+    };
+
+    // Is a given value a DOM element?
+    _.isElement = function (obj) {
+        return !!(obj && obj.nodeType === 1);
+    };
+
+    // Is a given value an array?
+    // Delegates to ECMA5's native Array.isArray
+    _.isArray = nativeIsArray || function (obj) {
+            return toString.call(obj) === '[object Array]';
+        };
+
+    // Is a given variable an object?
+    _.isObject = function (obj) {
+        var type = typeof obj;
+        return type === 'function' || type === 'object' && !!obj;
+    };
+
+    // Add some isType methods: isArguments, isFunction, isString, isNumber, isDate, isRegExp, isError.
+    _.each(['Arguments', 'Function', 'String', 'Number', 'Date', 'RegExp', 'Error'], function (name) {
+        _['is' + name] = function (obj) {
+            return toString.call(obj) === '[object ' + name + ']';
+        };
+    });
+
+    // Define a fallback version of the method in browsers (ahem, IE < 9), where
+    // there isn't any inspectable "Arguments" type.
+    if (!_.isArguments(arguments)) {
+        _.isArguments = function (obj) {
+            return _.has(obj, 'callee');
+        };
+    }
+
+    // Optimize `isFunction` if appropriate. Work around some typeof bugs in old v8,
+    // IE 11 (#1621), and in Safari 8 (#1929).
+    if (typeof /./ != 'function' && typeof Int8Array != 'object') {
+        _.isFunction = function (obj) {
+            return typeof obj == 'function' || false;
+        };
+    }
+
+    // Is a given object a finite number?
+    _.isFinite = function (obj) {
+        return isFinite(obj) && !isNaN(parseFloat(obj));
+    };
+
+    // Is the given value `NaN`? (NaN is the only number which does not equal itself).
+    _.isNaN = function (obj) {
+        return _.isNumber(obj) && obj !== +obj;
+    };
+
+    // Is a given value a boolean?
+    _.isBoolean = function (obj) {
+        return obj === true || obj === false || toString.call(obj) === '[object Boolean]';
+    };
+
+    // Is a given value equal to null?
+    _.isNull = function (obj) {
+        return obj === null;
+    };
+
+    // Is a given variable undefined?
+    _.isUndefined = function (obj) {
+        return obj === void 0;
+    };
+
+    // Shortcut function for checking if an object has a given property directly
+    // on itself (in other words, not on a prototype).
+    _.has = function (obj, key) {
+        return obj != null && hasOwnProperty.call(obj, key);
+    };
+
+    // Utility Functions
+    // -----------------
+
+    // Keep the identity function around for default iteratees.
+    _.identity = function (value) {
+        return value;
+    };
+
+    // Predicate-generating functions. Often useful outside of Underscore.
+    _.constant = function (value) {
+        return function () {
+            return value;
+        };
+    };
+
+    _.noop = function () {
+    };
+
+    _.property = property;
+
+    // Generates a function for a given object that returns a given property.
+    _.propertyOf = function (obj) {
+        return obj == null ? function () {
+        } : function (key) {
+            return obj[key];
+        };
+    };
+
+    // Returns a predicate for checking whether an object has a given set of
+    // `key:value` pairs.
+    _.matcher = _.matches = function (attrs) {
+        attrs = _.extendOwn({}, attrs);
+        return function (obj) {
+            return _.isMatch(obj, attrs);
+        };
+    };
+
+    // Run a function **n** times.
+    _.times = function (n, iteratee, context) {
+        var accum = Array(Math.max(0, n));
+        iteratee = optimizeCb(iteratee, context, 1);
+        for (var i = 0; i < n; i++) accum[i] = iteratee(i);
+        return accum;
+    };
+
+    // Return a random integer between min and max (inclusive).
+    _.random = function (min, max) {
+        if (max == null) {
+            max = min;
+            min = 0;
+        }
+        return min + Math.floor(Math.random() * (max - min + 1));
+    };
+
+    // A (possibly faster) way to get the current timestamp as an integer.
+    _.now = Date.now || function () {
+            return new Date().getTime();
+        };
+
+    // List of HTML entities for escaping.
+    var escapeMap = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#x27;',
+        '`': '&#x60;'
+    };
+    var unescapeMap = _.invert(escapeMap);
+
+    // Functions for escaping and unescaping strings to/from HTML interpolation.
+    var createEscaper = function (map) {
+        var escaper = function (match) {
+            return map[match];
+        };
+        // Regexes for identifying a key that needs to be escaped
+        var source = '(?:' + _.keys(map).join('|') + ')';
+        var testRegexp = RegExp(source);
+        var replaceRegexp = RegExp(source, 'g');
+        return function (string) {
+            string = string == null ? '' : '' + string;
+            return testRegexp.test(string) ? string.replace(replaceRegexp, escaper) : string;
+        };
+    };
+    _.escape = createEscaper(escapeMap);
+    _.unescape = createEscaper(unescapeMap);
+
+    // If the value of the named `property` is a function then invoke it with the
+    // `object` as context; otherwise, return it.
+    _.result = function (object, property, fallback) {
+        var value = object == null ? void 0 : object[property];
+        if (value === void 0) {
+            value = fallback;
+        }
+        return _.isFunction(value) ? value.call(object) : value;
+    };
+
+    // Generate a unique integer id (unique within the entire client session).
+    // Useful for temporary DOM ids.
+    var idCounter = 0;
+    _.uniqueId = function (prefix) {
+        var id = ++idCounter + '';
+        return prefix ? prefix + id : id;
+    };
+
+    // By default, Underscore uses ERB-style template delimiters, change the
+    // following template settings to use alternative delimiters.
+    _.templateSettings = {
+        evaluate: /<%([\s\S]+?)%>/g,
+        interpolate: /<%=([\s\S]+?)%>/g,
+        escape: /<%-([\s\S]+?)%>/g
+    };
+
+    // When customizing `templateSettings`, if you don't want to define an
+    // interpolation, evaluation or escaping regex, we need one that is
+    // guaranteed not to match.
+    var noMatch = /(.)^/;
+
+    // Certain characters need to be escaped so that they can be put into a
+    // string literal.
+    var escapes = {
+        "'": "'",
+        '\\': '\\',
+        '\r': 'r',
+        '\n': 'n',
+        '\u2028': 'u2028',
+        '\u2029': 'u2029'
+    };
+
+    var escaper = /\\|'|\r|\n|\u2028|\u2029/g;
+
+    var escapeChar = function (match) {
+        return '\\' + escapes[match];
+    };
+
+    // JavaScript micro-templating, similar to John Resig's implementation.
+    // Underscore templating handles arbitrary delimiters, preserves whitespace,
+    // and correctly escapes quotes within interpolated code.
+    // NB: `oldSettings` only exists for backwards compatibility.
+    _.template = function (text, settings, oldSettings) {
+        if (!settings && oldSettings) settings = oldSettings;
+        settings = _.defaults({}, settings, _.templateSettings);
+
+        // Combine delimiters into one regular expression via alternation.
+        var matcher = RegExp([
+                (settings.escape || noMatch).source,
+                (settings.interpolate || noMatch).source,
+                (settings.evaluate || noMatch).source
+            ].join('|') + '|$', 'g');
+
+        // Compile the template source, escaping string literals appropriately.
+        var index = 0;
+        var source = "__p+='";
+        text.replace(matcher, function (match, escape, interpolate, evaluate, offset) {
+            source += text.slice(index, offset).replace(escaper, escapeChar);
+            index = offset + match.length;
+
+            if (escape) {
+                source += "'+\n((__t=(" + escape + "))==null?'':_.escape(__t))+\n'";
+            } else if (interpolate) {
+                source += "'+\n((__t=(" + interpolate + "))==null?'':__t)+\n'";
+            } else if (evaluate) {
+                source += "';\n" + evaluate + "\n__p+='";
+            }
+
+            // Adobe VMs need the match returned to produce the correct offest.
+            return match;
+        });
+        source += "';\n";
+
+        // If a variable is not specified, place data values in local scope.
+        if (!settings.variable) source = 'with(obj||{}){\n' + source + '}\n';
+
+        source = "var __t,__p='',__j=Array.prototype.join," +
+            "print=function(){__p+=__j.call(arguments,'');};\n" +
+            source + 'return __p;\n';
+
+        try {
+            var render = new Function(settings.variable || 'obj', '_', source);
+        } catch (e) {
+            e.source = source;
+            throw e;
+        }
+
+        var template = function (data) {
+            return render.call(this, data, _);
+        };
+
+        // Provide the compiled source as a convenience for precompilation.
+        var argument = settings.variable || 'obj';
+        template.source = 'function(' + argument + '){\n' + source + '}';
+
+        return template;
+    };
+
+    // Add a "chain" function. Start chaining a wrapped Underscore object.
+    _.chain = function (obj) {
+        var instance = _(obj);
+        instance._chain = true;
+        return instance;
+    };
+
+    // OOP
+    // ---------------
+    // If Underscore is called as a function, it returns a wrapped object that
+    // can be used OO-style. This wrapper holds altered versions of all the
+    // underscore functions. Wrapped objects may be chained.
+
+    // Helper function to continue chaining intermediate results.
+    var result = function (instance, obj) {
+        return instance._chain ? _(obj).chain() : obj;
+    };
+
+    // Add your own custom functions to the Underscore object.
+    _.mixin = function (obj) {
+        _.each(_.functions(obj), function (name) {
+            var func = _[name] = obj[name];
+            _.prototype[name] = function () {
+                var args = [this._wrapped];
+                push.apply(args, arguments);
+                return result(this, func.apply(_, args));
+            };
+        });
+    };
+
+    // Add all of the Underscore functions to the wrapper object.
+    _.mixin(_);
+
+    // Add all mutator Array functions to the wrapper.
+    _.each(['pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'], function (name) {
+        var method = ArrayProto[name];
+        _.prototype[name] = function () {
+            var obj = this._wrapped;
+            method.apply(obj, arguments);
+            if ((name === 'shift' || name === 'splice') && obj.length === 0) delete obj[0];
+            return result(this, obj);
+        };
+    });
+
+    // Add all accessor Array functions to the wrapper.
+    _.each(['concat', 'join', 'slice'], function (name) {
+        var method = ArrayProto[name];
+        _.prototype[name] = function () {
+            return result(this, method.apply(this._wrapped, arguments));
+        };
+    });
+
+    // Extracts the result from a wrapped and chained object.
+    _.prototype.value = function () {
+        return this._wrapped;
+    };
+
+    // Provide unwrapping proxy for some methods used in engine operations
+    // such as arithmetic and JSON stringification.
+    _.prototype.valueOf = _.prototype.toJSON = _.prototype.value;
+
+    _.prototype.toString = function () {
+        return '' + this._wrapped;
+    };
+
+
+}());
+
 /*
  * The MIT License (MIT)
  *
@@ -892,7 +2449,7 @@ var igv = (function (igv) {
 
             var genome = igv.browser ? igv.browser.genome : null;
 
-            igvxhr
+            igv.xhr
                 .loadArrayBuffer(indexURL, igv.buildOptions(config))
                 .then(function (arrayBuffer) {
 
@@ -1237,7 +2794,7 @@ var igv = (function (igv) {
                                             fetchMax = c.maxv.block + 65000,   // Make sure we get the whole block.
                                             range = {start: fetchMin, size: fetchMax - fetchMin + 1};
 
-                                        igvxhr.loadArrayBuffer(self.bamPath, igv.buildOptions(self.config, {range: range}))
+                                        igv.xhr.loadArrayBuffer(self.bamPath, igv.buildOptions(self.config, {range: range}))
                                             .then(function (compressed) {
 
                                             var ba = new Uint8Array(igv.unbgzf(compressed)); //new Uint8Array(igv.unbgzf(compressed)); //, c.maxv.block - c.minv.block + 1));
@@ -1515,7 +3072,7 @@ var igv = (function (igv) {
 
                 var len = index.firstAlignmentBlock + MAX_GZIP_BLOCK_SIZE;   // Insure we get the complete compressed block containing the header
 
-                igvxhr.loadArrayBuffer(self.bamPath, igv.buildOptions(self.config, {range: {start: 0, size: len}})
+                igv.xhr.loadArrayBuffer(self.bamPath, igv.buildOptions(self.config, {range: {start: 0, size: len}})
                     ).then(function (compressedBuffer) {
 
                     var unc = igv.unbgzf(compressedBuffer, len),
@@ -2172,24 +3729,20 @@ var igv = (function (igv) {
 
                 if ('tag' === menuItem.key) {
 
-                    igv.dialog.configure(
+                    igv.dialog.configure(function () {
+                        return "Tag Name"
+                    }, self.alignmentTrack.colorByTag ? self.alignmentTrack.colorByTag : '', function () {
+                        var tag = igv.dialog.$dialogInput.val().trim();
+                        self.alignmentTrack.colorBy = 'tag';
 
-                        function () { return "Tag Name" },
+                        if (tag !== self.alignmentTrack.colorByTag) {
+                            self.alignmentTrack.colorByTag = igv.dialog.$dialogInput.val().trim();
+                            self.alignmentTrack.tagColors = new igv.PaletteColorTable("Set1");
+                            $('#color-by-tag').text(self.alignmentTrack.colorByTag);
+                        }
 
-                        self.alignmentTrack.colorByTag ? self.alignmentTrack.colorByTag : '',
-
-                        function () {
-                            var tag = igv.dialog.$dialogInput.val().trim();
-                            self.alignmentTrack.colorBy = 'tag';
-
-                            if(tag !== self.alignmentTrack.colorByTag) {
-                                self.alignmentTrack.colorByTag = igv.dialog.$dialogInput.val().trim();
-                                self.alignmentTrack.tagColors = new igv.PaletteColorTable("Set1");
-                                $('#color-by-tag').text(self.alignmentTrack.colorByTag);
-                            }
-
-                            self.trackView.update();
-                        });
+                        self.trackView.update();
+                    }, undefined, undefined);
 
                     igv.dialog.show($(self.trackView.trackDiv));
 
@@ -2388,7 +3941,8 @@ var igv = (function (igv) {
         var coverageMap = this.featureSource.alignmentContainer.coverageMap,
             coverageMapIndex,
             coverage,
-            nameValues = [];
+            nameValues = [],
+            tmp;
 
 
         coverageMapIndex = genomicLocation - coverageMap.bpStart;
@@ -2638,7 +4192,8 @@ var igv = (function (igv) {
                     x,
                     y,
                     i,
-                    yStrokedLine = yRect + alignmentHeight / 2;
+                    yStrokedLine = yRect + alignmentHeight / 2,
+                    len;
 
                 if (block.gapType !== undefined && xBlockEnd !== undefined && lastBlockEnd !== undefined) {
                     if ("D" === block.gapType) {
@@ -3028,7 +4583,7 @@ var igv = (function (igv) {
 
         return new Promise(function (fulfill, reject) {
 
-            igvxhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: self.filePosition, size: BLOCK_HEADER_LENGTH}}))
+            igv.xhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: self.filePosition, size: BLOCK_HEADER_LENGTH}}))
                 .then(function (arrayBuffer) {
 
                 var ba = new Uint8Array(arrayBuffer);
@@ -3040,7 +4595,7 @@ var igv = (function (igv) {
 
                 self.filePosition += BLOCK_HEADER_LENGTH;
 
-                igvxhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: self.filePosition, size: bsize}}))
+                igv.xhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: self.filePosition, size: bsize}}))
                     .then(function (arrayBuffer) {
 
                     var unc = jszlib_inflate_buffer(arrayBuffer);
@@ -3061,6 +4616,7 @@ var igv = (function (igv) {
     return igv;
 
 })(igv || {});
+
 /*
  * The MIT License (MIT)
  *
@@ -3436,7 +4992,7 @@ var igv = (function (igv) {
                     loadRange = {start: requestedRange.start, size: bufferSize};
                 }
 
-                igvxhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: loadRange}))
+                igv.xhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: loadRange}))
                     .then(function (arrayBuffer) {
                     self.data = arrayBuffer;
                     self.range = loadRange;
@@ -3463,6 +5019,7 @@ var igv = (function (igv) {
     return igv;
 
 })(igv || {});
+
 /*
  * The MIT License (MIT)
  *
@@ -3607,7 +5164,7 @@ var igv = (function (igv) {
     var RPTREE_MAGIC_HTL = 0xE0AC6824;
     var RPTREE_HEADER_SIZE = 48;
     var RPTREE_NODE_LEAF_ITEM_SIZE = 32;   // leaf item size
-    RPTREE_NODE_CHILD_ITEM_SIZE = 24;  // child item size
+    var RPTREE_NODE_CHILD_ITEM_SIZE = 24;  // child item size
     var BUFFER_SIZE = 512000;     //  buffer
 
     igv.RPTree = function (fileOffset, contentLength, config, littleEndian) {
@@ -3747,7 +5304,7 @@ var igv = (function (igv) {
                 if (nodeId != undefined) processing.delete(nodeId);
 
                 // Wait until all nodes are processed
-                if (processing.isEmpty()) {
+                if (processing.size === 0) {
                     fulfill(leafItems);
                 }
             }
@@ -3876,7 +5433,7 @@ var igv = (function (igv) {
         var self = this;
 
         return new Promise(function (fulfill, reject) {
-            igvxhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: 0, size: BBFILE_HEADER_SIZE}}))
+            igv.xhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: 0, size: BBFILE_HEADER_SIZE}}))
                 .then(function (data) {
 
                 if (!data) return;
@@ -3946,7 +5503,7 @@ var igv = (function (igv) {
             
             var range = {start: startOffset, size: (self.header.fullDataOffset - startOffset + 5)};
 
-            igvxhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: range}))
+            igv.xhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: range}))
                 .then(function (data) {
 
                 var nZooms = self.header.nZoomLevels,
@@ -3959,11 +5516,11 @@ var igv = (function (igv) {
                 self.zoomLevelHeaders = [];
 
                 self.firstZoomDataOffset = Number.MAX_VALUE;
-                for (i = 0; i < nZooms; i++) {
+                for (i = 1; i <= nZooms; i++) {
                     zoomNumber = nZooms - i;
                     zlh = new ZoomLevelHeader(zoomNumber, binaryParser);
                     self.firstZoomDataOffset = Math.min(zlh.dataOffset, self.firstZoomDataOffset);
-                    self.zoomLevelHeaders.push(zlh);
+                    self.zoomLevelHeaders[zoomNumber] = zlh;
                 }
 
                 // Autosql
@@ -4178,19 +5735,15 @@ var igv = (function (igv) {
 
             zl = zoomLevelHeaders[i];
 
-            if (zl.reductionLevel > bpPerPixel) {
+            if (zl.reductionLevel < bpPerPixel) {
                 level = zl;
                 break;
             }
         }
 
-        if (null == level) {
-            level = zoomLevelHeaders[zoomLevelHeaders.length - 1];
-        }
-
-        return (level && level.reductionLevel < 4 * bpPerPixel) ? level : null;
+        return level;
     }
-    
+
     function decodeWigData(data, chr, chrIdx, bpStart, bpEnd, featureArray) {
 
         var binaryParser = new igv.BinaryParser(data),
@@ -4819,22 +6372,16 @@ var igv = (function (igv) {
     };
 
     igv.Browser.prototype.disableZoomWidget = function () {
-
-        this.$zoomContainer.find('.fa-minus-circle').off();
-        this.$zoomContainer.find('.fa-plus-circle' ).off();
-
+        this.$zoomContainer.hide();
     };
 
-    igv.Browser.prototype.enableZoomWidget = function (zoomHandlers) {
-
-        this.$zoomContainer.find('.fa-minus-circle').on(zoomHandlers.out);
-        this.$zoomContainer.find('.fa-plus-circle' ).on(zoomHandlers.in);
-
+    igv.Browser.prototype.enableZoomWidget = function () {
+        this.$zoomContainer.show();
     };
 
     igv.Browser.prototype.toggleCursorGuide = function (genomicStateList) {
 
-        if (_.size(genomicStateList) > 1 || 'all' === (_.first(genomicStateList)).locusSearchString) {
+        if (_.size(genomicStateList) > 1 || 'all' === (_.first(genomicStateList)).locusSearchString.toLowerCase()) {
 
             if(this.$cursorTrackingGuide.is(":visible")) {
                 this.$cursorTrackingGuideToggle.click();
@@ -4849,7 +6396,7 @@ var igv = (function (igv) {
 
     igv.Browser.prototype.toggleCenterGuide = function (genomicStateList) {
 
-        if (_.size(genomicStateList) > 1 || 'all' === (_.first(genomicStateList)).locusSearchString) {
+        if (_.size(genomicStateList) > 1 || 'all' === (_.first(genomicStateList)).locusSearchString.toLowerCase()) {
 
             if(this.centerGuide.$container.is(":visible")) {
                 this.centerGuide.$centerGuideToggle.click();
@@ -4953,7 +6500,7 @@ var igv = (function (igv) {
             igv.popover.hide();
         }
 
-        trackView = new igv.TrackView(track, this);
+        trackView = new igv.TrackView(this, $(this.trackContainerDiv), track);
         this.trackViews.push(trackView);
         this.reorderTracks();
         trackView.resize();
@@ -5247,7 +6794,7 @@ var igv = (function (igv) {
 
         if (0 === genomicState.locusIndex && 1 === genomicState.locusCount) {
 
-            if ('all' === genomicState.locusSearchString) {
+            if ('all' === genomicState.locusSearchString.toLowerCase()) {
 
                 this.$searchInput.val(genomicState.locusSearchString);
             } else {
@@ -5517,7 +7064,7 @@ var igv = (function (igv) {
             igv.IdeoPanel.$empty($content_header);
         }
 
-        this.emptyViewportContainers($('.igv-track-container-div'));
+        this.emptyViewportContainers();
 
         filtered = _.filter(_.clone(this.genomicStateList), function(gs) {
             return filterFunction(gs);
@@ -5536,37 +7083,50 @@ var igv = (function (igv) {
 
         this.buildViewportsWithGenomicStateList(this.genomicStateList);
 
+        this.zoomWidgetLayout();
+
         this.toggleCenterGuide(this.genomicStateList);
+
         this.toggleCursorGuide(this.genomicStateList);
 
         this.resize();
 
     };
 
-    igv.Browser.prototype.emptyViewportContainers = function ($trackContainer) {
-        var $e;
+    igv.Browser.prototype.emptyViewportContainers = function () {
 
-        $e = $trackContainer.find('.igv-scrollbar-outer-div');
-        $e.remove();
-
-        $e = $trackContainer.find('.igv-viewport-div');
-        $e.remove();
+        $('.igv-scrollbar-outer-div').remove();
+        $('.igv-viewport-div').remove();
+        $('.igv-ruler-sweeper-div').remove();
 
         _.each(this.trackViews, function(trackView){
             trackView.viewports = [];
             trackView.scrollbar = undefined;
+
+            _.each(_.keys(trackView.track.rulerSweepers), function (key) {
+                trackView.track.rulerSweepers[ key ] = undefined;
+            });
+
+            trackView.track.rulerSweepers = undefined;
         });
+
     };
 
     igv.Browser.prototype.buildViewportsWithGenomicStateList = function (genomicStateList) {
 
         _.each(this.trackViews, function(trackView){
 
-            _.each(_.range(_.size(genomicStateList)), function(i) {
-                trackView.viewports.push(new igv.Viewport(trackView, i));
-                trackView.configureViewportContainer(trackView.$viewportContainer, trackView.viewports);
+            _.each(genomicStateList, function(genomicState, i) {
+
+                trackView.viewports.push(new igv.Viewport(trackView, trackView.$viewportContainer, i));
+
+                if (trackView.track instanceof igv.RulerTrack) {
+                    trackView.track.createRulerSweeper(trackView.viewports[i], trackView.viewports[i].$viewport, $(trackView.viewports[i].contentDiv), genomicState);
+                }
+
             });
 
+            trackView.configureViewportContainer(trackView.$viewportContainer, trackView.viewports);
         });
 
     };
@@ -5578,7 +7138,8 @@ var igv = (function (igv) {
 
         this.getGenomicStateList(loci, this.viewportContainerWidth(), function (genomicStateList) {
 
-            var errorString,
+            var found,
+                errorString,
                 $content_header = $('#igv-content-header');
 
             if (_.size(genomicStateList) > 0) {
@@ -5594,17 +7155,11 @@ var igv = (function (igv) {
 
                 self.genomicStateList = genomicStateList;
 
-                self.emptyViewportContainers($('.igv-track-container-div'));
-
-                // return;
+                self.emptyViewportContainers();
 
                 self.updateLocusSearchWithGenomicState(_.first(self.genomicStateList));
 
-                if (1 === _.size(self.genomicStateList) && 'all' === (_.first(self.genomicStateList)).locusSearchString) {
-                    self.disableZoomWidget();
-                } else {
-                    self.enableZoomWidget(self.zoomHandlers);
-                }
+                self.zoomWidgetLayout();
 
                 self.toggleCenterGuide(self.genomicStateList);
                 self.toggleCursorGuide(self.genomicStateList);
@@ -5623,6 +7178,21 @@ var igv = (function (igv) {
             }
 
         });
+    };
+
+    igv.Browser.prototype.zoomWidgetLayout = function () {
+        var found;
+
+        found = _.filter(this.genomicStateList, function (g) {
+            return 'all' === g.locusSearchString.toLowerCase();
+        });
+
+        if (_.size(found) > 0) {
+            this.disableZoomWidget();
+        } else {
+            this.enableZoomWidget();
+        }
+
     };
 
     /**
@@ -5698,7 +7268,7 @@ var igv = (function (igv) {
                         path.replace("$GENOME$", (self.genome.id ? self.genome.id : "hg19"));
                     }
 
-                    return igvxhr.loadString(path);
+                    return igv.xhr.loadString(path);
                 });
 
                 Promise
@@ -5849,6 +7419,17 @@ var igv = (function (igv) {
 
     };
 
+    igv.Browser.prototype.loadSampleInformation = function(url) {
+        var name = url;
+        if (url instanceof File) {
+            name = url.name;
+        }
+        var ext = name.substr(name.lastIndexOf('.')+1);
+        if (ext === 'fam') {
+            igv.sampleInformation.loadPlinkFile(url);
+        }
+    };
+
     igv.Browser.isLocusChrNameStartEnd = function (locus, genome, locusObject) {
 
         var a,
@@ -5913,7 +7494,8 @@ var igv = (function (igv) {
     igv.Browser.validateLocusExtent = function (chromosome, extent) {
 
         var ss = extent.start,
-            ee = extent.end;
+            ee = extent.end,
+            center
 
         if (undefined === ee) {
 
@@ -6202,9 +7784,10 @@ var igv = (function (igv) {
                     url.replace("$GENOME$", genomeId);
                 }
 
-                igvxhr.loadString(url).then(function (data) {
+                igv.xhr.loadString(url).then(function (data) {
 
-                    var results = ("plain" === searchConfig.type) ? parseSearchResults(data) : JSON.parse(data);
+                    var results = ("plain" === searchConfig.type) ? parseSearchResults(data) : JSON.parse(data),
+                        r;
 
                     if (searchConfig.resultsField) {
                         results = results[searchConfig.resultsField];
@@ -6386,18 +7969,18 @@ var igv = (function (igv) {
 /**
  * Created by dat on 4/18/17.
  */
-var encode = (function (encode) {
-
+var igv = (function (igv) {
+    
     /**
      * @param config      dataSource configuration
      * @param tableFormat table formatting object (see for example EncodeTableFormat)
      */
-    encode.EncodeDataSource = function (config, tableFormat) {
+    igv.EncodeDataSource = function (config, tableFormat) {
         this.config = config;
         this.tableFormat = tableFormat;
     };
 
-    encode.EncodeDataSource.prototype.retrieveData = function (continuation) {
+    igv.EncodeDataSource.prototype.retrieveData = function (continuation) {
 
         var self = this,
             fileFormat,
@@ -6425,7 +8008,7 @@ var encode = (function (encode) {
             "limit=all";
 
 
-        igvxhr
+        igv.xhr
             .loadJson(query, {})
             .then(function (json) {
 
@@ -6540,7 +8123,7 @@ var encode = (function (encode) {
 
     };
 
-    encode.EncodeDataSource.prototype.dataAtRowIndex = function (index) {
+    igv.EncodeDataSource.prototype.dataAtRowIndex = function (index) {
         var row,
             obj;
 
@@ -6584,11 +8167,11 @@ var encode = (function (encode) {
         return obj;
     };
 
-    encode.EncodeDataSource.prototype.tableData = function () {
+    igv.EncodeDataSource.prototype.tableData = function () {
         return this.tableFormat.tableData(this.jSON);
     };
 
-    encode.EncodeDataSource.prototype.tableColumns = function () {
+    igv.EncodeDataSource.prototype.tableColumns = function () {
         return this.tableFormat.tableColumns(this.jSON);
     };
 
@@ -6626,7 +8209,7 @@ var encode = (function (encode) {
             var self = this;
 
             this.jSON = {};
-            igvxhr.loadString(file).then(function (data) {
+            igv.xhr.loadString(file).then(function (data) {
 
                 var lines = data.splitLines(),
                     item;
@@ -6670,9 +8253,9 @@ var encode = (function (encode) {
 
     }
 
-    return encode;
+    return igv;
 
-})(encode || {});
+})(igv || {});
 
 /*
  * The MIT License (MIT)
@@ -6700,19 +8283,19 @@ var encode = (function (encode) {
  * THE SOFTWARE.
  */
 
-var encode = (function (encode) {
+var igv = (function (igv) {
 
     /**
      * @param config tableFormat configuration
      */
-    encode.EncodeTableFormat = function (config) {
+    igv.EncodeTableFormat = function (config) {
         this.config = config;
     };
 
     /**
      * @param jSON data object passed from EncodeDataSource instance
      */
-    encode.EncodeTableFormat.prototype.tableData = function (jSON) {
+    igv.EncodeTableFormat.prototype.tableData = function (jSON) {
 
         var result;
 
@@ -6721,7 +8304,7 @@ var encode = (function (encode) {
             var rr;
 
             rr = _.map(jSON.columns, function (key) {
-                return row[ key ];
+                return row[key];
             });
 
             // rr.unshift(index);
@@ -6736,13 +8319,13 @@ var encode = (function (encode) {
     /**
      * @param jSON data object passed from EncodeDataSource instance
      */
-    encode.EncodeTableFormat.prototype.tableColumns = function (jSON) {
+    igv.EncodeTableFormat.prototype.tableColumns = function (jSON) {
 
         var self = this,
             columns;
 
         columns = _.map(jSON.columns, function (heading) {
-            return { title:heading, width:self.config.columnWidths[ heading ] }
+            return {title: heading, width: self.config.columnWidths[heading]}
         });
 
         // columns.unshift({ title:'index', width:'10%' });
@@ -6751,9 +8334,10 @@ var encode = (function (encode) {
 
     };
 
-    return encode;
+    return igv;
 
-})(encode || {});
+
+})(igv || {});
 
 /*
  * The MIT License (MIT)
@@ -6913,7 +8497,7 @@ var igv = (function (igv) {
             if (self.index) {
                 fulfill(self.index);
             } else {
-                igvxhr.load(self.indexFile, igv.buildOptions(self.config))
+                igv.xhr.load(self.indexFile, igv.buildOptions(self.config))
                     .then(function (data) {
                         var lines = data.splitLines();
                         var len = lines.length;
@@ -6963,7 +8547,7 @@ var igv = (function (igv) {
             self.chromosomes = {};
             self.sequences = {};
 
-            igvxhr.load(self.file, igv.buildOptions(self.config))
+            igv.xhr.load(self.file, igv.buildOptions(self.config))
                 .then(function (data) {
 
                     var lines = data.splitLines(),
@@ -7043,7 +8627,7 @@ var igv = (function (igv) {
                         fulfill(null);
                     }
 
-                    igvxhr.load(self.file, igv.buildOptions(self.config, {range: {start: startByte, size: byteCount}}))
+                    igv.xhr.load(self.file, igv.buildOptions(self.config, {range: {start: startByte, size: byteCount}}))
                         .then(function (allBytes) {
 
                             var nBases,
@@ -7227,13 +8811,14 @@ var igv = (function (igv) {
             continuation(features);   // <= PARSING DONE HERE
         };
 
-        igvxhr.loadString(self.config.url, options).then(success);
+        igv.xhr.loadString(self.config.url, options).then(success);
 
     };
 
     return igv;
 })
 (igv || {});
+
 /*R
  * The MIT License (MIT)
  *
@@ -7322,19 +8907,21 @@ var igv = (function (igv) {
     };
 
     igv.AneuTrack.prototype.getSummary = function (chr, bpStart, bpEnd, continuation) {
-        var me = this;
-        var filtersummary = function (redlinedata) {
-            var summarydata = [];
-            //log("AneuTrack: getSummary for: " + JSON.stringify(me.featureSourceRed.url));
-            for (i = 0, len = redlinedata.length; i < len; i++) {
-                var feature = redlinedata[i];
-                if (Math.abs(feature.score - 2) > 0.5 && (feature.end - feature.start > 5000000)) {
-                    //log("adding summary: "+JSON.stringify(feature));
-                    summarydata.push(feature);
+       
+            filtersummary = function (redlinedata) {
+                var summarydata = [],
+                    i,
+                    len;
+
+                for (i = 0, len = redlinedata.length; i < len; i++) {
+                    var feature = redlinedata[i];
+                    if (Math.abs(feature.score - 2) > 0.5 && (feature.end - feature.start > 5000000)) {
+                        //log("adding summary: "+JSON.stringify(feature));
+                        summarydata.push(feature);
+                    }
                 }
-            }
-            continuation(summarydata);
-        };
+                continuation(summarydata);
+            };
         if (this.featureSourceRed) {
             this.featureSourceRed.getFeatures(chr, bpStart, bpEnd, filtersummary);
         }
@@ -7345,7 +8932,8 @@ var igv = (function (igv) {
     };
 
     igv.AneuTrack.prototype.loadSummary = function (chr, bpStart, bpEnd, continuation) {
-        var self = this;
+        var self = this,
+            afterload;
         if (this.featureSourceRed) {
             this.featureSourceRed.getFeatures(chr, bpStart, bpEnd, continuation);
         }
@@ -7365,7 +8953,7 @@ var igv = (function (igv) {
 
             afterload = igv.buildOptions(self.config, {tokens: self.config.tokens, success: afterJsonLoaded});
 
-            igvxhr.loadString(self.config.url, afterload);
+            igv.xhr.loadString(self.config.url, afterload);
 
             return null;
         }
@@ -7411,21 +8999,23 @@ var igv = (function (igv) {
                 afterJsonLoaded = function (json) {
                     json = JSON.parse(json);
                     log("Got json: " + json + ", diff :" + json.diff);
-                    self.featureSource = new igv.AneuFeatureSource(config, json.diff);
-                    self.featureSourceRed = new igv.AneuFeatureSource(config, json.redline);
+                    self.featureSource = new igv.AneuFeatureSource(self.config, json.diff);
+                    self.featureSourceRed = new igv.AneuFeatureSource(self.config, json.redline);
                     fulfill();
                 };
 
                 afterload = igv.buildOptions(self.config, {tokens: self.config.tokens});
 
-                igvxhr.loadString(self.config.url, afterload).then(afterJsonLoaded);
+                igv.xhr.loadString(self.config.url, afterload).then(afterJsonLoaded);
 
             }
         });
     }
 
     igv.AneuTrack.prototype.getColor = function (value) {
-        var expected = 2;
+        var expected = 2,
+            color;
+
         if (value < expected) {
             color = this.lowColor;
         } else if (value > expected) {
@@ -7665,6 +9255,9 @@ var igv = (function (igv) {
      */
     igv.AneuTrack.prototype.computePixelHeight = function (features) {
         // console.log("computePixelHeight");
+
+        var i, len, sample;
+
         for (i = 0, len = features.length; i < len; i++) {
             sample = features[i].sample;
             if (this.samples && !this.samples.hasOwnProperty(sample)) {
@@ -7731,7 +9324,6 @@ var igv = (function (igv) {
                 self.samples[sampleNames[i]] = i;
             }
             self.sampleNames = sampleNames;
-
 
 
             callback();
@@ -7884,11 +9476,11 @@ var igv = (function (igv) {
             var url = self.config.url,
                 body = self.config.body;
 
-            if(body !== undefined && chr !== "all") {
+            if(body !== undefined && chr.toLowerCase() !== "all") {
                 self.config.body = self.config.body.replace("$CHR", chr);
             }
 
-            igvxhr.load(url, self.config).then(function (data) {
+            igv.xhr.load(url, self.config).then(function (data) {
 
                 if (data) {
 
@@ -8015,7 +9607,9 @@ var igv = (function (igv) {
         var featureCache = {},
             chromosomes = [],
             treeMap = {},
-            genome = igv.browser ? igv.browser.genome : null;
+            genome = igv.browser ? igv.browser.genome : null,
+            i,
+            chr;
 
         if (featureList) {
 
@@ -8205,7 +9799,7 @@ var igv = (function (igv) {
                                 fullfill(self.header);
                             };
 
-                            igvxhr
+                            igv.xhr
                                 .loadString(self.config.url, options)
                                 .then(success)
                                 .catch(function (error) {
@@ -8293,7 +9887,7 @@ var igv = (function (igv) {
                 fullfill(self.parser.parseFeatures(data));   // <= PARSING DONE HERE
             }
 
-            igvxhr
+            igv.xhr
                 .loadString(self.config.url, options)
                 .then(parseData)
                 .catch(reject);
@@ -8349,7 +9943,7 @@ var igv = (function (igv) {
 
                             if (self.index.tabix) {
 
-                                inflated = igvxhr.arrayBufferToString(igv.unbgzf(data));
+                                inflated = igv.xhr.arrayBufferToString(igv.unbgzf(data));
                                 // need to decompress data
                             } else {
                                 inflated = data;
@@ -8375,12 +9969,12 @@ var igv = (function (igv) {
 
                         // Async load
                         if (self.index.tabix) {
-                            igvxhr
+                            igv.xhr
                                 .loadArrayBuffer(self.config.url, options)
                                 .then(success)
                                 .catch(reject);
                         } else {
-                            igvxhr
+                            igv.xhr
                                 .loadString(self.config.url, options)
                                 .then(success)
                                 .catch(reject);
@@ -10319,12 +11913,18 @@ var igv = (function (igv) {
         cdsTypes = new Set();
         utrTypes = new Set();
         exonTypes = new Set();
-        transcriptTypes.addAll(['transcript', 'primary_transcript', 'processed_transcript', 'mRNA', 'mrna']);
-        cdsTypes.addAll(['CDS', 'cds', 'start_codon', 'stop_codon']);
-        utrTypes.addAll(['5UTR', '3UTR', 'UTR', 'five_prime_UTR', 'three_prime_UTR', "3'-UTR", "5'-UTR"]);
-        exonTypes.addAll(['exon', 'coding-exon']);
-
-
+        ['transcript', 'primary_transcript', 'processed_transcript', 'mRNA', 'mrna'].forEach(function (m) {
+            transcriptTypes.add(m);
+        });
+        ['CDS', 'cds', 'start_codon', 'stop_codon'].forEach(function (m) {
+            cdsTypes.add(m);
+        });
+        ['5UTR', '3UTR', 'UTR', 'five_prime_UTR', 'three_prime_UTR', "3'-UTR", "5'-UTR"].forEach(function (m) {
+            utrTypes.add(m);
+        });
+        ['exon', 'coding-exon'].forEach(function (m) {
+            exonTypes.add(m);
+        });
     }
 
     igv.GFFHelper = function (format) {
@@ -10612,6 +12212,7 @@ var igv = (function (igv) {
     return igv;
 
 })(igv || {});
+
 /*
  * The MIT License (MIT)
  *
@@ -10943,7 +12544,8 @@ var igv = (function (igv) {
      */
     igv.SegTrack.prototype.computePixelHeight = function (features) {
 
-        var sampleHeight = ("SQUISHED" === this.displayMode) ? this.sampleSquishHeight : this.sampleExpandHeight;
+        var sampleHeight = ("SQUISHED" === this.displayMode) ? this.sampleSquishHeight : this.sampleExpandHeight,
+            i, len, sample;
 
         for (i = 0, len = features.length; i < len; i++) {
             sample = features[i].sample;
@@ -11145,7 +12747,7 @@ var igv = (function (igv) {
 
         return new Promise(function (fullfill) {
 
-            igvxhr
+            igv.xhr
                 .loadArrayBuffer(indexFile, igv.buildOptions(config))
                 .then(function (arrayBuffer) {
 
@@ -11188,7 +12790,7 @@ var igv = (function (igv) {
 
                 var indexedFileTS = parser.getLong();
                 var indexedFileMD5 = parser.getString();
-                flags = parser.getInt();
+                var flags = parser.getInt();
                 if (version < 3 && (flags & SEQUENCE_DICTIONARY_FLAG) == SEQUENCE_DICTIONARY_FLAG) {
                     // readSequenceDictionary(dis);
                 }
@@ -11433,13 +13035,13 @@ var igv = (function (igv) {
                 defaultRange = self.featureSource.getDefaultRange();
                 if(!isNaN(defaultRange.min) && !isNaN(defaultRange.max)) {
                     self.dataRange = defaultRange;
-                    console.log("Range= " + defaultRange.min + " - " + defaultRange.max);
                 }
             }
             if (self.autoscale || self.dataRange === undefined) {
                 var s = autoscale(features);
-                featureValueMinimum = s.min;
+                featureValueMinimum = self.config.min || s.min;      // If min is explicitly set use it
                 featureValueMaximum = s.max;
+
             }
             else {
                 featureValueMinimum = self.dataRange.min === undefined ? 0 : self.dataRange.min;
@@ -11453,9 +13055,12 @@ var igv = (function (igv) {
             self.dataRange.min = featureValueMinimum;  // Record for disply, menu, etc
             self.dataRange.max = featureValueMaximum;
 
-            featureValueRange = featureValueMaximum - featureValueMinimum;
-
-            features.forEach(renderFeature);
+            // Max can be less than min if config.min is set but max left to autoscale.   If that's the case there is
+            // nothing to paint.
+            if(featureValueMaximum > featureValueMinimum) {
+                featureValueRange = featureValueMaximum - featureValueMinimum;
+                features.forEach(renderFeature);
+            }
         }
 
 
@@ -11593,6 +13198,8 @@ var igv = (function (igv) {
 
     igv.Ga4ghAlignment = function (json, genome) {
 
+        var alignment, cigarDecoded;
+
         this.readName = json.fragmentName;
         this.properPlacement = json.properPlacement;
         this.duplicateFragment = json.duplicateFragment;
@@ -11694,7 +13301,8 @@ var igv = (function (igv) {
 
     igv.Ga4ghAlignment.prototype.popupData = function (genomicLocation) {
 
-        var isFirst;
+        var isFirst,
+            nameValues;
 
         nameValues = [];
 
@@ -11763,7 +13371,8 @@ var igv = (function (igv) {
 
         var cigarUnit, opLen, opLtr,
             lengthOnRef = 0,
-            cigarArray = [];
+            cigarArray = [],
+            i;
 
         for (i = 0; i < cigar.length; i++) {
 
@@ -11781,7 +13390,6 @@ var igv = (function (igv) {
 
         return {lengthOnRef: lengthOnRef, array: cigarArray};
     }
-
 
 
     function translateCigar(cigar) {
@@ -12345,7 +13953,7 @@ var igv = (function (igv) {
 
         var url = options.url + "/" + options.entity + "/" + options.entityId;
 
-        return igvxhr.loadJson(url, options);      // Returns a promise
+        return igv.xhr.loadJson(url, options);      // Returns a promise
     }
 
     igv.ga4ghSearch = function (options) {
@@ -12383,7 +13991,7 @@ var igv = (function (igv) {
 
                 var sendData = JSON.stringify(body);
 
-                igvxhr.loadJson(url,
+                igv.xhr.loadJson(url,
                     {
                         sendData: sendData,
                         contentType: "application/json",
@@ -12578,6 +14186,7 @@ var igv = (function (igv) {
     return igv;
 
 })(igv || {});
+
 /*
  * The MIT License (MIT)
  *
@@ -12652,7 +14261,9 @@ var igv = (function (igv) {
                                 var filteredCallSets = [],
                                     csIdSet = new Set();
 
-                                csIdSet.addAll(self.callSetIds);
+                                self.callSetIds.forEach(function (csid) {
+                                    csIdSet.add(m);
+                                })
                                 json.callSets.forEach(function (cs) {
                                     if (csIdSet.has(cs.id)) {
                                         filteredCallSets.push(cs);
@@ -12760,6 +14371,7 @@ var igv = (function (igv) {
     return igv;
 
 })(igv || {});
+
 /*
  * The MIT License (MIT)
  *
@@ -12898,7 +14510,8 @@ var igv = (function (igv) {
         if (aliases) {
             aliases.forEach(function (array) {
                 // Find the official chr name
-                var defName;
+                var defName, i;
+                
                 for (i = 0; i < array.length; i++) {
                     if (self.chromosomes[array[i]]) {
                         defName = array[i];
@@ -13121,7 +14734,7 @@ var igv = (function (igv) {
 
     function loadCytobands(cytobandUrl, config, continuation) {
 
-        igvxhr.loadString(cytobandUrl, igv.buildOptions(config))
+        igv.xhr.loadString(cytobandUrl, igv.buildOptions(config))
             .then(function (data) {
 
             var bands = [],
@@ -13163,7 +14776,7 @@ var igv = (function (igv) {
 
     function loadAliases(aliasURL, config, continuation) {
 
-        igvxhr.loadString(aliasURL, igv.buildOptions(config))
+        igv.xhr.loadString(aliasURL, igv.buildOptions(config))
 
             .then(function (data) {
 
@@ -13716,7 +15329,7 @@ var igv = (function (igv) {
                         range = {start: blocks[0].startPos, size: len};
 
 
-                    igvxhr.loadArrayBuffer(file,
+                    igv.xhr.loadArrayBuffer(file,
                         {
                             range: range,
                             withCredentials: self.config.withCredentials
@@ -13774,7 +15387,7 @@ var igv = (function (igv) {
 
                 var genome = igv.browser ? igv.browser.genome : null;
 
-                igvxhr.loadArrayBuffer(url,
+                igv.xhr.loadArrayBuffer(url,
                     {
                         range: {start: 0, size: 200},
                         withCredentials: self.config.withCredentials
@@ -13788,7 +15401,7 @@ var igv = (function (igv) {
                             indexPosition = parser.getLong(),
                             indexSize = parser.getInt();
 
-                        igvxhr.loadArrayBuffer(url, {
+                        igv.xhr.loadArrayBuffer(url, {
 
                             range: {start: indexPosition, size: indexSize},
                             withCredentials: self.config.withCredentials
@@ -13964,7 +15577,7 @@ var igv = (function (igv) {
 
             return new Promise(function (fulfill, reject) {
 
-                igvxhr.loadJson(queryURL, {
+                igv.xhr.loadJson(queryURL, {
                     withCredentials: self.config.withCredentials
                 }).then(function (json) {
 
@@ -14053,7 +15666,7 @@ var igv = (function (igv) {
                 "&cell_condition_id=" + this.cellConditionId;
 
         return new Promise(function (fulfill, reject) {
-            igvxhr.loadJson(queryURL, {
+            igv.xhr.loadJson(queryURL, {
                 withCredentials: self.config.withCredentials
             }).then(function (json) {
 
@@ -14413,7 +16026,7 @@ var igv = (function (igv) {
                     queryURL = self.config.proxy ? self.config.proxy : self.url,
                     body = self.queryJson(queryChr, queryStart, queryEnd, self.config);
 
-                igvxhr.loadJson(queryURL, {
+                igv.xhr.loadJson(queryURL, {
                     sendData: body,
                     withCredentials: self.config.withCredentials
 
@@ -14499,7 +16112,8 @@ var igv = (function (igv) {
      */
     function jsonToVariantsV2(json, config) {
 
-        variants = [];
+        var variants = [];
+        
         json.variants.forEach(function (record) {
 
             var variant = {};
@@ -14676,7 +16290,7 @@ var igv = (function (igv) {
 
         return new Promise(function (fulfill, reject) {
 
-            igvxhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {
+            igv.xhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {
                     range: {start: 0, size: 64000} // TODO -- a guess, what if not enough ?
                 }))
                 .then(function (data) {
@@ -14742,7 +16356,7 @@ var igv = (function (igv) {
 
         return new Promise(function (fulfill, reject) {
 
-            igvxhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: range}))
+            igv.xhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: range}))
                 .then(function (data) {
 
                 var key, pos, size;
@@ -14849,7 +16463,7 @@ var igv = (function (igv) {
 
         return new Promise(function (fulfill, reject) {
 
-            igvxhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: idx.start, size: idx.size}}))
+            igv.xhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: idx.start, size: idx.size}}))
                 .then(function (data) {
 
                 if (!data) {
@@ -14911,7 +16525,7 @@ var igv = (function (igv) {
 
             return new Promise(function (fulfill, reject) {
 
-                igvxhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: idx.filePosition, size: idx.size}}))
+                igv.xhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: idx.filePosition, size: idx.size}}))
                     .then(function (data) {
 
                     if (!data) {
@@ -16240,6 +17854,7 @@ var igv = (function (igv) {
             igv.browser.getGenomicStateList(lociWithConfiguration(config), width, function (genomicStateList) {
 
                 var errorString,
+                    found,
                     gs;
 
                 if (_.size(genomicStateList) > 0) {
@@ -16254,11 +17869,7 @@ var igv = (function (igv) {
 
                     igv.browser.updateLocusSearchWithGenomicState(_.first(igv.browser.genomicStateList));
 
-                    if (1 === _.size(igv.browser.genomicStateList) && 'all' === (_.first(igv.browser.genomicStateList)).locusSearchString) {
-                        igv.browser.disableZoomWidget();
-                    } else {
-                        igv.browser.enableZoomWidget(igv.browser.zoomHandlers);
-                    }
+                    igv.browser.zoomWidgetLayout();
 
                     // igv.browser.toggleCursorGuide(igv.browser.genomicStateList);
                     igv.browser.toggleCenterGuide(igv.browser.genomicStateList);
@@ -16451,7 +18062,10 @@ var igv = (function (igv) {
             browser.$searchInput = $('<input type="text" placeholder="Locus Search">');
 
             browser.$searchInput.change(function (e) {
-                browser.parseSearchInput($(e.target).val());
+                var value;
+
+                value = $(e.target).val();
+                browser.parseSearchInput(value);
             });
 
             $faSearch = $('<i class="fa fa-search">');
@@ -16479,23 +18093,8 @@ var igv = (function (igv) {
             // window size panel
             browser.windowSizePanel = new igv.WindowSizePanel($navigation);
 
-            // zoom
-            browser.zoomHandlers = {
-                in: {
-                    click: function (e) {
-                        browser.zoomIn();
-                    }
-                },
-                out: {
-                    click: function (e) {
-                        browser.zoomOut();
-                    }
-                }
-            };
-
-            browser.$zoomContainer = zoomWidget();
-            $navigation.append(browser.$zoomContainer);
-
+            // zoom widget
+            zoomWidget(browser, $navigation);
 
             // cursor tracking guide
             browser.$cursorTrackingGuide = $('<div class="igv-cursor-tracking-guide">');
@@ -16544,13 +18143,26 @@ var igv = (function (igv) {
         return $controls.get(0);
     }
 
-    function zoomWidget() {
+    function zoomWidget(browser, $parent) {
 
-        var $zoomContainer = $('<div class="igv-zoom-widget">');
-        $zoomContainer.append($('<i class="fa fa-minus-circle">'));
-        $zoomContainer.append($('<i class="fa fa-plus-circle">'));
+        var $fa;
 
-        return $zoomContainer;
+        browser.$zoomContainer = $('<div class="igv-zoom-widget">');
+        $parent.append(browser.$zoomContainer);
+
+        $fa = $('<i class="fa fa-minus-circle">');
+        browser.$zoomContainer.append($fa);
+        $fa.on('click', function () {
+            browser.zoomOut();
+        });
+
+
+        $fa = $('<i class="fa fa-plus-circle">');
+        browser.$zoomContainer.append($fa);
+        $fa.on('click', function () {
+            browser.zoomIn();
+        });
+
     }
 
     function setDefaults(config) {
@@ -16980,7 +18592,7 @@ var igv = (function (igv) {
 
         path = pathTemplate.replace("$FEATURE$", name);
 
-        return igvxhr.loadString(path);
+        return igv.xhr.loadString(path);
 
     };
 
@@ -17470,14 +19082,15 @@ var igv = (function (igv) {
  * THE SOFTWARE.
  */
 
-var igvxhr = (function (igvxhr) {
+var igv = (function (igv) {
 
-    // Compression types
-    const NONE = 0;
-    const GZIP = 1;
-    const BGZF = 2;
+    var NONE = 0;
+    var GZIP = 1;
+    var BGZF = 2;
+    igv.xhr = {};
 
-    igvxhr.load = function (url, options) {
+
+    igv.xhr.load = function (url, options) {
 
         if (!options) options = {};
 
@@ -17533,7 +19146,8 @@ var igvxhr = (function (igvxhr) {
                     headers = headers || {};
                     igv.Google.addGoogleHeaders(headers);
 
-                } else if(options.oauth) {
+                } else if (options.oauth) {
+                    // "Legacy" option -- do not use (use options.token)
                     addOauthHeaders(headers)
                 }
 
@@ -17610,7 +19224,7 @@ var igvxhr = (function (igvxhr) {
                         options.sendData = "url=" + url;
                         options.crossDomainRetried = true;
 
-                        igvxhr.load(igv.browser.crossDomainProxy, options).then(fullfill);
+                        igv.xhr.load(igv.browser.crossDomainProxy, options).then(fullfill);
                     }
                     else {
                         handleError("Error accessing resource: " + url + " Status: " + xhr.status);
@@ -17646,19 +19260,19 @@ var igvxhr = (function (igvxhr) {
         }
     };
 
-    igvxhr.loadArrayBuffer = function (url, options) {
+    igv.xhr.loadArrayBuffer = function (url, options) {
 
         if (url instanceof File) {
             return loadFileSlice(url, options);
         } else {
             if (options === undefined) options = {};
             options.responseType = "arraybuffer";
-            return igvxhr.load(url, options);
+            return igv.xhr.load(url, options);
         }
 
     };
 
-    igvxhr.loadJson = function (url, options) {
+    igv.xhr.loadJson = function (url, options) {
 
         var method = options.method || (options.sendData ? "POST" : "GET");
 
@@ -17666,7 +19280,7 @@ var igvxhr = (function (igvxhr) {
 
         return new Promise(function (fullfill, reject) {
 
-            igvxhr.load(url, options).then(
+            igv.xhr.load(url, options).then(
                 function (result) {
                     if (result) {
                         fullfill(JSON.parse(result));
@@ -17678,7 +19292,7 @@ var igvxhr = (function (igvxhr) {
         })
     };
 
-    igvxhr.loadString = function (path, options) {
+    igv.xhr.loadString = function (path, options) {
         if (path instanceof File) {
             return loadFileHelper(path, options);
         } else {
@@ -17686,7 +19300,7 @@ var igvxhr = (function (igvxhr) {
         }
     };
 
-    igvxhr.arrayBufferToString = function (arraybuffer, compression) {
+    igv.xhr.arrayBufferToString = function (arraybuffer, compression) {
 
         var plain, inflate;
 
@@ -17755,7 +19369,7 @@ var igvxhr = (function (igvxhr) {
                     compression = NONE;
                 }
 
-                // result = igvxhr.arrayBufferToString(fileReader.result, compression);
+                // result = igv.xhr.arrayBufferToString(fileReader.result, compression);
                 // console.log('loadFileSlice byte length ' + fileReader.result.byteLength);
 
                 fullfill(fileReader.result);
@@ -17798,7 +19412,7 @@ var igvxhr = (function (igvxhr) {
                     compression = NONE;
                 }
 
-                result = igvxhr.arrayBufferToString(fileReader.result, compression);
+                result = igv.xhr.arrayBufferToString(fileReader.result, compression);
 
                 fullfill(result);
 
@@ -17838,17 +19452,17 @@ var igvxhr = (function (igvxhr) {
 
         if (compression === NONE) {
             options.mimeType = 'text/plain; charset=x-user-defined';
-            return igvxhr.load(url, options);
+            return igv.xhr.load(url, options);
         } else {
             options.responseType = "arraybuffer";
 
             return new Promise(function (fullfill, reject) {
 
-                igvxhr
+                igv.xhr
                     .load(url, options)
                     .then(
                         function (data) {
-                            var result = igvxhr.arrayBufferToString(data, compression);
+                            var result = igv.xhr.arrayBufferToString(data, compression);
                             fullfill(result);
                         })
                     .catch(reject)
@@ -17869,6 +19483,11 @@ var igvxhr = (function (igvxhr) {
 
     };
 
+    /**
+     * Legacy method to add oauth tokens.  Kept for backward compatibility.  Do not use -- use config.token setting instead.
+     * @param headers
+     * @returns {*}
+     */
     function addOauthHeaders(headers) {
         {
             headers["Cache-Control"] = "no-cache";
@@ -17883,22 +19502,21 @@ var igvxhr = (function (igvxhr) {
         }
     }
 
-    // Increments an anonymous usage count.  Count is anonymous, needed for our continued funding.  Please don't delete
+// Increments an anonymous usage count.  Count is anonymous, needed for our continued funding.  Please don't delete
     const href = window.document.location.href;
     if (!(href.includes("localhost") || href.includes("127.0.0.1"))) {
         var url = "https://data.broadinstitute.org/igv/projects/current/counter_igvjs.php?version=" + "0";
-        igvxhr.load(url).then(function (ignore) {
+        igv.xhr.load(url).then(function (ignore) {
             console.log(ignore);
         }).catch(function (error) {
             console.log(error);
         });
     }
 
-    return igvxhr;
 
+    return igv;
 })
-(igvxhr || {});
-
+(igv || {});
 
 /*
  * The MIT License (MIT)
@@ -19131,6 +20749,242 @@ var igv = (function (igv) {
 /*
  * The MIT License (MIT)
  *
+ * Copyright (c) 2016-2017 The Regents of the University of California
+ * Author: Jim Robinson
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+var igv = (function (igv) {
+
+    igv.RulerSweeper = function (viewport, $viewport, $viewportContent, genomicState) {
+
+        this.viewport = viewport;
+        this.$viewport = $viewport;
+        this.$viewportContent = $viewportContent;
+        this.genomicState = genomicState;
+
+        this.$rulerSweeper = $('<div class="igv-ruler-sweeper-div">');
+        this.$viewportContent.append(this.$rulerSweeper);
+
+        this.wholeGenomeLayout(this.$viewportContent.find('.igv-whole-genome-container'));
+
+        this.addMouseHandlers();
+    };
+
+    igv.RulerSweeper.prototype.wholeGenomeLayout = function ($container) {
+
+        var self = this,
+            viewportWidth,
+            extent,
+            nameLast,
+            chrLast,
+            scraps,
+            $div,
+            $e;
+
+        nameLast = _.last(igv.browser.genome.chromosomeNames);
+        chrLast = igv.browser.genome.getChromosome(nameLast);
+        extent = Math.floor(chrLast.bpLength/1000) + igv.browser.genome.getCumulativeOffset(nameLast);
+
+        viewportWidth = this.$viewport.width();
+        scraps = 0;
+        _.each(igv.browser.genome.chromosomeNames, function (name) {
+            var w,
+                percentage;
+
+            percentage = (igv.browser.genome.getChromosome(name).bpLength/1000)/extent;
+            if (percentage * viewportWidth < 1.0) {
+                scraps += percentage;
+            } else {
+                $div = $('<div>');
+                $container.append($div);
+
+                w = Math.floor(percentage * viewportWidth);
+                $div.width(w);
+
+                $e = $('<span>');
+                $div.append($e);
+
+                $e.text(name);
+
+                $div.on('click', function (e) {
+                    var locusString,
+                        loci;
+
+                    self.$viewportContent.find('.igv-whole-genome-container').hide();
+                    self.$viewportContent.find('canvas').show();
+
+                    if (1 === self.genomicState.locusCount) {
+                        locusString = name;
+                    } else {
+                        loci = _.map(igv.browser.genomicStateList, function (g) {
+                            return g.locusSearchString;
+                        });
+
+                        loci[ self.genomicState.locusIndex ] = name;
+                        locusString = loci.join(' ');
+                    }
+
+                    igv.browser.parseSearchInput(locusString);
+                });
+            }
+
+        });
+
+        scraps *= viewportWidth;
+        scraps = Math.floor(scraps);
+        if (scraps >= 1) {
+
+            $div = $('<div>');
+            $container.append($div);
+
+            $div.width(scraps);
+
+            $e = $('<span>');
+            $div.append($e);
+
+            $e.text('-');
+
+        }
+
+    };
+
+    igv.RulerSweeper.prototype.disableMouseHandlers = function () {
+        this.$viewportContent.off();
+        this.$viewport.off();
+    };
+
+    igv.RulerSweeper.prototype.addMouseHandlers = function () {
+
+        var self = this,
+            isMouseDown = undefined,
+            isMouseIn = undefined,
+            mouseDownXY = undefined,
+            mouseMoveXY = undefined,
+            left,
+            rulerSweepWidth,
+            rulerSweepThreshold = 1,
+            dx;
+
+        this.disableMouseHandlers();
+
+        this.$viewport.on({
+
+            mousedown: function (e) {
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                self.$viewportContent.off();
+
+                self.$viewportContent.on({
+                    mousedown: function (e) {
+
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        isMouseDown = true;
+                    }
+                });
+
+                // mouseDownXY = igv.translateMouseCoordinates(e, self.contentDiv);
+                mouseDownXY = { x:e.offsetX, y:e.offsetY };
+
+                left = mouseDownXY.x;
+                rulerSweepWidth = 0;
+                self.$rulerSweeper.css({"display": "inline", "left": left + "px", "width": rulerSweepWidth + "px"});
+
+                isMouseIn = true;
+            },
+
+            mousemove: function (e) {
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (isMouseDown && isMouseIn) {
+
+                    // mouseMoveXY = igv.translateMouseCoordinates(e, self.contentDiv);
+                    mouseMoveXY = { x:e.offsetX, y:e.offsetY };
+
+                    dx = mouseMoveXY.x - mouseDownXY.x;
+                    rulerSweepWidth = Math.abs(dx);
+
+                    if (rulerSweepWidth > rulerSweepThreshold) {
+
+                        self.$rulerSweeper.css({"width": rulerSweepWidth + "px"});
+
+                        if (dx < 0) {
+
+                            if (mouseDownXY.x + dx < 0) {
+                                isMouseIn = false;
+                                left = 0;
+                            } else {
+                                left = mouseDownXY.x + dx;
+                            }
+                            self.$rulerSweeper.css({"left": left + "px"});
+                        }
+                    }
+                }
+            },
+
+            mouseup: function (e) {
+
+                var extent,
+                    referenceFrame;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (isMouseDown) {
+
+                    // End sweep
+                    isMouseDown = false;
+                    isMouseIn = false;
+
+                    self.$rulerSweeper.css({ "display": "none", "left": 0 + "px", "width": 0 + "px" });
+
+                    referenceFrame = self.genomicState.referenceFrame;
+
+                    extent = {};
+                    extent.start = referenceFrame.start + (left * referenceFrame.bpPerPixel);
+                    extent.end = extent.start + rulerSweepWidth * referenceFrame.bpPerPixel;
+
+                    if (rulerSweepWidth > rulerSweepThreshold) {
+                        igv.Browser.validateLocusExtent(igv.browser.genome.getChromosome(referenceFrame.chrName), extent);
+                        self.viewport.goto(referenceFrame.chrName, extent.start, extent.end);
+                    }
+                }
+
+            }
+        });
+
+    };
+
+    return igv;
+
+}) (igv || {});
+
+/*
+ * The MIT License (MIT)
+ *
  * Copyright (c) 2014 Broad Institute
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19158,15 +21012,24 @@ var igv = (function (igv) {
     //
     igv.RulerTrack = function () {
 
-        this.height = 50;
-        // this.height = 24;
+        // this.height = 50;
+        this.height = 24;
         this.name = "";
         this.id = "ruler";
         this.disableButtons = true;
         this.ignoreTrackMenu = true;
         this.order = -Number.MAX_VALUE;
-        this.supportsWholeGenome = false;
-        
+        this.supportsWholeGenome = true;
+
+    };
+
+    igv.RulerTrack.prototype.createRulerSweeper = function (viewport, $viewport, $viewportContent, genomicState) {
+
+        if (undefined === this.rulerSweepers) {
+            this.rulerSweepers = {};
+        }
+
+        this.rulerSweepers[ genomicState.locusIndex.toString() ] = new igv.RulerSweeper(viewport, $viewport, $viewportContent, genomicState);
     };
 
     igv.RulerTrack.prototype.locusLabelWithViewport = function (viewport) {
@@ -19205,11 +21068,20 @@ var igv = (function (igv) {
             l,
             yShim,
             tickHeight,
-            bpPerPixel;
+            bpPerPixel,
+            rulerSweeper;
 
-        if (options.referenceFrame.chrName === "all") {
-            drawAll.call(this);
+        rulerSweeper = this.rulerSweepers[ options.genomicState.locusIndex.toString() ];
+
+        if ('all' === options.referenceFrame.chrName.toLowerCase()) {
+            drawWholeGenome.call(this, options, rulerSweeper);
         } else {
+
+            rulerSweeper.$viewportContent.find('.igv-whole-genome-container').hide();
+            rulerSweeper.$viewportContent.find('canvas').show();
+
+            rulerSweeper.addMouseHandlers();
+
             updateLocusLabelWithGenomicState(options.genomicState);
 
             bpPerPixel = options.referenceFrame.bpPerPixel;
@@ -19229,7 +21101,7 @@ var igv = (function (igv) {
                 x = Math.round(((l - 1) - options.bpStart + 0.5) / bpPerPixel);
                 var chrPosition = formatNumber(l / ts.unitMultiplier, 0) + " " + ts.majorUnit;
 
-                if (nTick % 1 == 0) {
+                if (nTick % 1 === 0) {
                     igv.graphics.fillText(options.context, chrPosition, x, this.height - (tickHeight / 0.75));
                 }
 
@@ -19242,21 +21114,9 @@ var igv = (function (igv) {
         }
 
         function updateLocusLabelWithGenomicState(genomicState) {
-            var $e,
-                viewports;
-
+            var $e;
             $e = options.viewport.$viewport.find('.igv-viewport-content-ruler-div');
             $e.text(genomicState.locusSearchString);
-
-            // viewports = _.filter(igv.Viewport.viewportsWithLocusIndex(genomicState.locusIndex), function(viewport){
-            //     return (viewport.trackView.track instanceof igv.RulerTrack);
-            // });
-            //
-            // if (1 === _.size(viewports)) {
-            //     $e = _.first(viewports).$viewport.find('.igv-viewport-content-ruler-div');
-            //     $e.text( genomicState.locusSearchString );
-            // }
-
         }
 
         function formatNumber(anynum, decimal) {
@@ -19280,34 +21140,34 @@ var igv = (function (igv) {
 
             var workNum = Math.abs((Math.round(anynum * divider) / divider));
 
-            var workStr = "" + workNum
+            var workStr = "" + workNum;
 
-            if (workStr.indexOf(".") == -1) {
+            if (workStr.indexOf(".") === -1) {
                 workStr += "."
             }
 
             var dStr = workStr.substr(0, workStr.indexOf("."));
-            var dNum = dStr - 0
-            var pStr = workStr.substr(workStr.indexOf("."))
+            var dNum = dStr - 0;
+            var pStr = workStr.substr(workStr.indexOf("."));
 
             while (pStr.length - 1 < decimal) {
                 pStr += "0"
             }
 
-            if (pStr == '.') pStr = '';
+            if (pStr === '.') pStr = '';
 
             //--- Adds a comma in the thousands place.
             if (dNum >= 1000) {
-                var dLen = dStr.length
+                var dLen = dStr.length;
                 dStr = parseInt("" + (dNum / 1000)) + "," + dStr.substring(dLen - 3, dLen)
             }
 
             //-- Adds a comma in the millions place.
             if (dNum >= 1000000) {
-                dLen = dStr.length
+                dLen = dStr.length;
                 dStr = parseInt("" + (dNum / 1000000)) + "," + dStr.substring(dLen - 7, dLen)
             }
-            var retval = dStr + pStr
+            var retval = dStr + pStr;
             //-- Put numbers in parentheses if negative.
             if (anynum < 0) {
                 retval = "(" + retval + ")";
@@ -19318,33 +21178,13 @@ var igv = (function (igv) {
             return retval;
         }
 
-
-        function drawAll() {
-
-            var self = this,
-                lastX = 0,
-                yShim = 2,
-                tickHeight = 10;
-
-            _.each(igv.browser.genome.wgChromosomeNames, function (chrName) {
-
-                var chromosome = igv.browser.genome.getChromosome(chrName),
-                    bp = igv.browser.genome.getGenomeCoordinate(chrName, chromosome.bpLength),
-                    x = Math.round((bp - options.bpStart ) / bpPerPixel),
-                    chrLabel = chrName.startsWith("chr") ? chrName.substr(3) : chrName;
-
-                options.context.textAlign = 'center';
-                igv.graphics.strokeLine(options.context, x, self.height - tickHeight, x, self.height - yShim);
-                igv.graphics.fillText(options.context, chrLabel, (lastX + x) / 2, self.height - (tickHeight / 0.75));
-
-                lastX = x;
-
-            })
-            igv.graphics.strokeLine(options.context, 0, self.height - yShim, options.pixelWidth, self.height - yShim);
+        function drawWholeGenome(options, rulerSweeper) {
+            rulerSweeper.$viewportContent.find('canvas').hide();
+            rulerSweeper.$viewportContent.find('.igv-whole-genome-container').show();
+            rulerSweeper.disableMouseHandlers();
         }
 
     };
-
 
     function TickSpacing(majorTick, majorUnit, unitMultiplier) {
         this.majorTick = majorTick;
@@ -19390,6 +21230,105 @@ var igv = (function (igv) {
 
     return igv;
 })(igv || {});
+
+/*
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2014-2015 Broad Institute
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+/**
+ * Support for module definition.  This code should be last in the concatenated "igv.js" file.
+ *
+ */
+
+var igv = (function (igv) {
+
+
+    var SampleInformation = function () {
+        this.attributes = {};
+        this.plinkLoaded = false;
+    }
+
+    SampleInformation.prototype.loadPlinkFile = function (url, config) {
+
+        var self = this;
+
+        if (!config) config = {};
+
+        return new Promise(function (fulfill, reject) {
+
+            var options = igv.buildOptions(config);    // Add oauth token, if any
+
+            igv.xhr
+                .loadString(url, options)
+
+                .then(function (data) {
+
+                    var lines = data.splitLines();
+
+                    lines.forEach(function (line) {
+                        var line_arr = line.split(' ');
+                        self.attributes[line_arr[1]] = {
+                            familyId: line_arr[0],
+                            fatherId: line_arr[2],
+                            motherId: line_arr[3],
+                            sex: line_arr[4],
+                            phenotype: line_arr[5]
+                        }
+                    });
+                    self.plinkLoaded = true;
+                    fulfill(self.attributes);
+
+                })
+
+                .catch(reject);
+
+        });
+
+    };
+
+    /**
+     * Return the attributes for the given sample as a map-like object (key-value pairs)
+     * @param sample
+     */
+    SampleInformation.prototype.getAttributes = function (sample) {
+        return this.attributes[sample];
+    };
+
+
+
+    /**
+     * Decleare a global singleton SampleInformation object.
+     *
+     * @type {SampleInformation}
+     */
+    igv.sampleInformation = new SampleInformation();
+
+
+    return igv;
+})(igv || {});
+
+
 
 /*
  * The MIT License (MIT)
@@ -19555,27 +21494,8 @@ if (!Array.isArray) {
     };
 }
 
-if (typeof Set !== "undefined") {
+if (typeof Set === "undefined") {
 
-    Set.prototype.isEmpty = function () {
-        return this.size === 0;
-    }
-
-    Set.prototype.addAll = function (arrayOrSet) {
-
-        if (Array.isArray(arrayOrSet) || this._isPseudoArray(arrayOrSet)) {
-            for (var j = 0; j < arrayOrSet.length; j++) {
-                this.add(arrayOrSet[j]);
-            }
-        } else if (arrayOrSet instanceof Set) {
-            var self = this;
-            arrayOrSet.each(function (val, key) {
-                self.add(key, val);
-            });
-        }
-    }
-}
-else {
     Set = function (/*initialData*/) {
         // Usage:
         // new Set()
@@ -20290,7 +22210,7 @@ var igv = (function (igv) {
 
         return new Promise(function (fulfill, reject) {
 
-            igvxhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: 0, size: 64000}}))
+            igv.xhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: 0, size: 64000}}))
                 .then(function (data) {
 
                 if (!data) {
@@ -20330,7 +22250,7 @@ var igv = (function (igv) {
                 self.compressed = (self.flags & GZIP_FLAG) != 0;
 
                 // Now read index
-                igvxhr.loadArrayBuffer(self.path,igv.buildOptions(self.config, {range: {start: self.indexPos, size: self.indexSize}}))
+                igv.xhr.loadArrayBuffer(self.path,igv.buildOptions(self.config, {range: {start: self.indexPos, size: self.indexSize}}))
                     .then(function (data) {
 
 
@@ -20378,7 +22298,7 @@ var igv = (function (igv) {
             self.readHeader().then(function (reader) {
 
                 var wf = (self.version < 2) ? "" : "/" + windowFunction,
-                    zoomString = (chr === "all" || zoom === undefined) ? "0" : zoom.toString(),
+                    zoomString = (chr.toLowerCase() === "all" || zoom === undefined) ? "0" : zoom.toString(),
                     dsName,
                     indexEntry;
 
@@ -20396,7 +22316,7 @@ var igv = (function (igv) {
                 else {
 
 
-                    igvxhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: indexEntry.position, size: indexEntry.size}}))
+                    igv.xhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: indexEntry.position, size: indexEntry.size}}))
                         .then(function (data) {
 
                         if (!data) {
@@ -20498,7 +22418,7 @@ var igv = (function (igv) {
                 else {
 
 
-                    igvxhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: indexEntry.position, size: indexEntry.size}}))
+                    igv.xhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: indexEntry.position, size: indexEntry.size}}))
                         .then(function (data) {
 
                         if (!data) {
@@ -20652,7 +22572,7 @@ var igv = (function (igv) {
 
         return new Promise(function (fulfill, reject) {
 
-            igvxhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: indexEntry.position, size: indexEntry.size}}))
+            igv.xhr.loadArrayBuffer(self.path, igv.buildOptions(self.config, {range: {start: indexEntry.position, size: indexEntry.size}}))
                 .then(function (data) {
 
                 if (!data) {
@@ -21361,7 +23281,6 @@ var igv = (function (igv) {
         return all;
     };
 
-
     igv.trackMenuItemListHelper = function(itemList) {
 
         var list = [];
@@ -21419,7 +23338,7 @@ var igv = (function (igv) {
 
         clickHandler = function(){
             var $element = $(trackView.trackDiv);
-            igv.dialog.configure(dialogLabelHandler, dialogInputValue, dialogClickHandler);
+            igv.dialog.configure(dialogLabelHandler, dialogInputValue, dialogClickHandler, undefined, undefined);
             igv.dialog.show($element);
             popover.hide();
         };
@@ -21452,12 +23371,34 @@ var igv = (function (igv) {
         var $e,
             clickHandler;
 
+
         $e = $('<div>');
         $e.text('Set track color');
 
         clickHandler = function () {
-            igv.colorPicker.configure(trackView);
-            igv.colorPicker.show();
+            var defaultColor,
+                color,
+                offset,
+                colorUpdateHandler;
+
+            color = trackView.track.color;
+
+            defaultColor = trackView.track.config.color || igv.browser.constants.defaultColor;
+
+            offset =
+                {
+                    left: ($(trackView.trackDiv).offset().left + $(trackView.trackDiv).width()) - igv.colorPicker.$container.width(),
+                    top:  $(trackView.trackDiv).offset().top
+                };
+
+            colorUpdateHandler = function (color) {
+                trackView.setColor( color )
+            };
+
+            igv.colorPicker.configure(trackView, color, defaultColor, offset, colorUpdateHandler);
+
+            igv.colorPicker.presentAtOffset(offset);
+
             popover.hide();
         };
 
@@ -22169,23 +24110,22 @@ var igv = (function (igv) {
 
 var igv = (function (igv) {
 
-    igv.TrackView = function (track, browser) {
+    igv.TrackView = function (browser, $container, track) {
 
         var self = this,
             element;
 
-        this.track = track;
-        track.trackView = this;
-
         this.browser = browser;
 
         this.trackDiv = $('<div class="igv-track-div">')[0];
+        $container.append(this.trackDiv);
+
+        this.track = track;
+        track.trackView = this;
 
         if (this.track instanceof igv.RulerTrack) {
             this.trackDiv.dataset.rulerTrack = "rulerTrack";
         }
-
-        $(browser.trackContainerDiv).append(this.trackDiv);
 
         if (track.height) {
             this.trackDiv.style.height = track.height + "px";
@@ -22197,8 +24137,14 @@ var igv = (function (igv) {
         $(this.trackDiv).append(this.$viewportContainer);
 
         this.viewports = [];
-        _.each(_.range(_.size(browser.genomicStateList)), function(i) {
-            self.viewports.push(new igv.Viewport(self, i));
+        _.each(browser.genomicStateList, function(genomicState, i) {
+
+            self.viewports.push(new igv.Viewport(self, self.$viewportContainer, i));
+
+            if (self.track instanceof igv.RulerTrack) {
+                self.track.createRulerSweeper(self.viewports[i], self.viewports[i].$viewport, $(self.viewports[i].contentDiv), genomicState);
+            }
+
         });
 
         this.configureViewportContainer(this.$viewportContainer, this.viewports);
@@ -22863,7 +24809,6 @@ var igv = (function (igv) {
 
         var self = this,
             palette = userPalette || ["#666666", "#0000cc", "#009900", "#cc0000", "#ffcc00", "#9900cc", "#00ccff", "#ff6600", "#ff6600"],
-            //palette = ["#666666", "#0000cc", "#009900", "#cc0000", "#ffcc00", "#9900cc", "#00ccff", "#ff6600", "#ff6600"],
             rowCount = Math.ceil(palette.length / columnCount),
             rowIndex;
 
@@ -22944,9 +24889,8 @@ var igv = (function (igv) {
 
                 if (parsed) {
 
-                    // igv.setTrackColor(self.trackView.track, parsed);
-                    // self.trackView.update();
-                    self.trackView.setColor( parsed );
+                    // self.trackView.setColor( parsed );
+                    self.colorUpdateHandler(parsed);
 
                     addUserColor(parsed);
 
@@ -23069,11 +25013,8 @@ var igv = (function (igv) {
                 $filler.css("background-color", color);
 
                 $filler.click(function () {
-
-                    // igv.setTrackColor(self.trackView.track, $(this).css("background-color"));
-                    // self.trackView.update();
-                    self.trackView.setColor( $(this).css("background-color") );
-
+                    // self.trackView.setColor( $(this).css("background-color") );
+                    self.colorUpdateHandler($(this).css("background-color"));
                 });
 
             }
@@ -23098,9 +25039,8 @@ var igv = (function (igv) {
             $column.append(self.$defaultColor);
 
             $column.click(function () {
-                // igv.setTrackColor(self.trackView.track, $(this).find(".igv-col-filler").css("background-color"));
-                // self.trackView.update();
-                self.trackView.setColor( $(this).find(".igv-col-filler").css("background-color") );
+                // self.trackView.setColor( $(this).find(".igv-col-filler").css("background-color") );
+                self.colorUpdateHandler( $(this).find(".igv-col-filler").css("background-color") );
             });
 
             $row.append($column);
@@ -23134,9 +25074,8 @@ var igv = (function (igv) {
             $column.append(self.$previousColor);
 
             $column.click(function () {
-                // igv.setTrackColor(self.trackView.track, $(this).find(".igv-col-filler").css("background-color"));
-                // self.trackView.update();
-                self.trackView.setColor( $(this).find(".igv-col-filler").css("background-color") );
+                // self.trackView.setColor( $(this).find(".igv-col-filler").css("background-color") );
+                self.colorUpdateHandler( $(this).find(".igv-col-filler").css("background-color") );
             });
 
             $row.append($column);
@@ -23195,11 +25134,8 @@ var igv = (function (igv) {
                 $filler.css("background-color", colorOrNull);
 
                 $filler.click(function () {
-
-                    // igv.setTrackColor(self.trackView.track, $(this).css("background-color"));
-                    // self.trackView.update();
-                    self.trackView.setColor( $(this).css("background-color") )
-
+                    // self.trackView.setColor( $(this).css("background-color") );
+                    self.colorUpdateHandler( $(this).css("background-color") );
                 });
 
             } else {
@@ -23212,13 +25148,11 @@ var igv = (function (igv) {
 
     };
 
-    igv.ColorPicker.prototype.configure = function (trackView) {
-
-        this.trackView = trackView;
-
-        this.$defaultColor.css("background-color", trackView.track.config.color || igv.browser.constants.defaultColor);
-        this.$previousColor.css("background-color", trackView.track.color);
-
+    igv.ColorPicker.prototype.configure = function (trackView, trackColor, trackDefaultColor, offset, colorUpdateHandler) {
+        this.$previousColor.css("background-color", trackColor);
+        this.$defaultColor.css("background-color", trackDefaultColor);
+        $(this.$container).offset(offset);
+        this.colorUpdateHandler = colorUpdateHandler;
     };
 
     igv.ColorPicker.prototype.hide = function () {
@@ -23226,29 +25160,9 @@ var igv = (function (igv) {
         this.$container.hide();
     };
 
-    igv.ColorPicker.prototype.show = function () {
-
-        var body_scrolltop = $("body").scrollTop(),
-            track_origin = $(this.trackView.trackDiv).offset(),
-            track_size = {
-                width: $(this.trackView.trackDiv).outerWidth(),
-                height: $(this.trackView.trackDiv).outerHeight()
-            },
-            size = {width: $(this.$container).outerWidth(), height: $(this.$container).outerHeight()},
-            obj;
-
-        $(this.$container).offset({left: (track_size.width - 300), top: (track_origin.top + body_scrolltop)});
-
-
-        obj = $(".igv-user-input-color");
-        obj.val("");
-        obj.attr("placeholder", "Ex: #ff0000 or 255,0,0");
-
+    igv.ColorPicker.prototype.presentAtOffset = function (offset) {
         this.$container.show();
         this.$userError.hide();
-
-        $(this.$container).offset(igv.constrainBBox($(this.$container), $(igv.browser.trackContainerDiv)));
-
     };
 
     return igv;
@@ -23787,13 +25701,16 @@ var igv = (function (igv) {
 
     /**
      * @param $parent              containing jquery selection used to host the table
-     * @param browser              reference to the hicBrower object
+     * @param browserRetrievalFunction              reference to the hicBrower object
      * @param browserLoadFunction function that consumes items selected from the table
      * @param dataSource          source of data fed to the table (see for example EncodeDataSource)
      */
-    igv.IGVModalTable = function ($parent, browser, browserLoadFunction, dataSource) {
+    igv.IGVModalTable = function ($parent, browserRetrievalFunction, browserLoadFunction, dataSource) {
 
-        var self = this;
+        var self = this,
+        $modal = $('#hicEncodeModal');
+
+        this.dataSource = dataSource;
 
         this.initialized = false;
 
@@ -23804,16 +25721,27 @@ var igv = (function (igv) {
         this.$modalTable.append(this.$spinner);
 
         this.$spinner.append($('<i class="fa fa-lg fa-spinner fa-spin"></i>'));
+        this.$spinner.hide();
 
-        $('#hicEncodeModal').on('shown.bs.modal', function (e) {
+        $modal.on('show.bs.modal', function (e) {
 
-            if (true !== self.initialized) {
+            if (undefined === browserRetrievalFunction) {
+                igv.presentAlert('ERROR: must provide browser retrieval function');
+            }
 
+        });
+
+        $modal.on('shown.bs.modal', function (e) {
+
+            if (undefined === browserRetrievalFunction) {
+                $modal.modal('hide');
+            } else if (true !== self.initialized) {
                 self.initialized = true;
+                self.$spinner.show();
                 dataSource.retrieveData(function () {
                     self.createTableWithDataSource(dataSource);
+                    self.$spinner.hide();
                 });
-
             }
 
         });
@@ -23830,11 +25758,14 @@ var igv = (function (igv) {
 
             var dt,
                 $selectedTableRows,
-                result;
+                result,
+                browser;
 
             $selectedTableRows = self.$dataTables.$('tr.selected');
 
-            if ($selectedTableRows.length > 0) {
+            if (undefined === browserRetrievalFunction) {
+                igv.presentAlert('ERROR: must provide browser retrieval function');
+            } else if ($selectedTableRows.length > 0) {
 
                 $selectedTableRows.removeClass('selected');
 
@@ -23844,12 +25775,16 @@ var igv = (function (igv) {
                     result.push( dataSource.dataAtRowIndex( dt.row(this).index() ) );
                 });
 
-                browserLoadFunction.call(browser, result);
-
+                browser = browserRetrievalFunction();
+                browser[ browserLoadFunction ](result);
             }
 
         });
 
+    };
+
+    igv.IGVModalTable.prototype.genomeID = function () {
+        return this.dataSource.config.genomeID;
     };
 
     igv.IGVModalTable.prototype.unbindAllMouseHandlers = function () {
@@ -24375,7 +26310,9 @@ var igv = (function (igv) {
         variant.filter = tokens[6];
         variant.info = getInfoObject(tokens[7]);
 
-        variant.str = variant.info["PERIOD"] !== undefined;
+        if (variant.info["PERIOD"]) {
+            variant.type = 'str';
+        }
 
         initAlleles(variant);
 
@@ -24410,8 +26347,9 @@ var igv = (function (igv) {
         variant.filter = arrayToCommaString(json.filter);
         variant.info = json.info;
 
-        variant.str = variant.info["PERIOD"] !== undefined;
-
+        if (variant.info["PERIOD"]) {
+            variant.type = 'str';
+        }
 
         // Need to build a hash of calls for fast lookup
         // Note from the GA4GH spec on call ID:
@@ -24451,7 +26389,7 @@ var igv = (function (igv) {
         // If an STR define start and end based on reference allele.  Otherwise start and end computed below based
         // on alternate allele type (snp, insertion, deletion)
 
-        if(variant.str) {
+        if('str' === variant.type) {
             variant.start = variant.pos - 1;
             variant.end = variant.start + variant.referenceBases.length;
         }
@@ -24466,7 +26404,7 @@ var igv = (function (igv) {
 
                 // Adjust for padding, used for insertions and deletions, unless variant is a short tandem repeat.
 
-                if (!variant.str && alt.length > 0) {
+                if (!('str' === variant.type) && alt.length > 0) {
 
                     diff = variant.referenceBases.length - alt.length;
 
@@ -24562,16 +26500,11 @@ var igv = (function (igv) {
 
     };
 
-    function arrayToCommaString(array) {
-        if (!array) return;
-        var str = '', i;
-        if (array.length > 0)
-            str = array[0];
-        for (i = 1; i < array.length; i++) {
-            str += ", " + array[1];
+    function arrayToCommaString(value) {
+        if (!(Array.isArray(value))) {
+            return value;
         }
-        return str;
-
+        return value.join(',');
     }
 
     return igv;
@@ -24793,7 +26726,7 @@ var igv = (function (igv) {
                     pw -= 2;
                 }
 
-                if (variant.str) {
+                if ('str' === variant.type) {
                     var period = parseInt(variant.info["PERIOD"]),
                         variantColors = ["rgb(150,150,150)", "rgb(255,0,0)", "rgb(255,255,0)",
                             "rgb(0,0,255)", "rgb(0,255,0)", "rgb(128,0,128)"
@@ -24814,7 +26747,7 @@ var igv = (function (igv) {
 
                     h = callHeight;
 
-                    if(variant.str) {
+                    if('str' === variant.type) {
                         lowColorScale = new igv.GradientColorScale(
                             {
                                 low: variant.minAltLength,
@@ -24849,7 +26782,7 @@ var igv = (function (igv) {
 
                             py = this.variantBandHeight + vGap + (j + variant.row) * (h + vGap);
 
-                            if (!variant.str) {
+                            if (!('str' === variant.type)) {
 
                                 // Not STR -- color by zygosity
 
@@ -24926,7 +26859,7 @@ var igv = (function (igv) {
     }
 
     igv.VariantTrack.prototype.sortCallsets = function (variant, direction) {
-        var d = (direction === "ASC") ? 1 : -1;
+        var d = (direction === "DESC") ? 1 : -1;
         this.callSets.sort(function (a, b) {
             var aNan = isNaN(variant.calls[a.id].genotype[0]);
             var bNan = isNaN(variant.calls[b.id].genotype[0]);
@@ -24963,7 +26896,6 @@ var igv = (function (igv) {
 
                 if ((variant.start <= genomicLocation + tolerance) &&
                     (variant.end > genomicLocation - tolerance)) {
-                    console.log('alt-clicked');
                     // var content = igv.formatPopoverText(['Ascending', 'Descending', 'Repeat Number']);
                     //igv.popover.presentContent(event.pageX, event.pageY, [$asc, $desc]);
 
@@ -25049,22 +26981,16 @@ var igv = (function (igv) {
     function extractPopupData(call, variant) {
 
         var gt = '', popupData, i, allele, numRepeats = '', alleleFrac = '';
-
-        if (this.type === 'str') {
+        if ('str' === variant.type) {
             var info = variant.info;
+            var alt_ac = info.AC.split(',');
             if (!isNaN(call.genotype[0])) {
                 for (i = 0; i < call.genotype.length; i++) {
-                    if (call.genotype[i] === 0) {
-                        allele = variant.referenceBases;
-                        gt += allele;
-                        numRepeats += (allele.length / info.PERIOD).toString();
-                        alleleFrac += (parseInt(info.REFAC) / parseInt(info.AN)).toFixed(3);
-                    } else {
-                        allele = variant.alleles[call.genotype[i] - 1].allele;
-                        gt += allele;
-                        numRepeats += (allele.length / info.PERIOD).toString();
-                        alleleFrac += (parseInt(info.AC.split(',')[call.genotype[i] - 1]) / parseInt(info.AN)).toFixed(3);
-                    }
+                    allele = getAlleleString(call, variant, i);
+                    gt += allele;
+                    numRepeats += (allele.length / info.PERIOD).toString();
+                    var ac = (call.genotype[i] === 0) ? info.REFAC : alt_ac[call.genotype[i]-1];
+                    alleleFrac += (parseInt(ac) / parseInt(info.AN)).toFixed(3);
                     if (i < call.genotype.length - 1) {
                         gt += " | ";
                         numRepeats += " | ";
@@ -25101,6 +27027,14 @@ var igv = (function (igv) {
         if (call.genotypeLikelihood !== undefined) {
             popupData.push({name: 'genotypeLikelihood', value: call.genotypeLikelihood.toString()});
         }
+
+        if (igv.sampleInformation.plinkLoaded) {
+            var attr = igv.sampleInformation.getAttributes(call.callSetName);
+            if (attr) {
+                popupData.push({name: 'Family Id', value: attr.familyId});
+                //popupData.push({name: 'Sex', value: attr.sex});
+            }
+        }
         if (popupData.length > 2) {
             popupData.push("<hr>");
         }
@@ -25112,6 +27046,74 @@ var igv = (function (igv) {
 
         return popupData;
     }
+
+    igv.VariantTrack.prototype.popupMenuItemList = function(config) {
+        var menuItems = [];
+        var self = this;
+
+        if (igv.sampleInformation.plinkLoaded) {
+            menuItems.push({
+               name: 'Sort by Family',
+               click: function() {
+                   self.callSets.sort(function (a, b) {
+                       var attrA = igv.sampleInformation.getAttributes(a.name);
+                       var attrB = igv.sampleInformation.getAttributes(b.name);
+                       if (!attrA && !attrB) {
+                           return 0;
+                       } else if (!attrA) {
+                           return 1;
+                       } else if (!attrB) {
+                           return -1;
+                       }
+                       return parseInt(attrA.familyId) - parseInt(attrB.familyId);
+                   });
+                   self.trackView.update();
+                   config.popover.hide();
+               }
+            });
+        }
+
+        var referenceFrame = config.viewport.genomicState.referenceFrame,
+            genomicLocation = config.genomicLocation,
+            chr = referenceFrame.chrName,
+            tolerance = Math.floor(2 * referenceFrame.bpPerPixel),  // We need some tolerance around genomicLocation, start with +/- 2 pixels
+            featureList = this.featureSource.featureCache.queryFeatures(chr, genomicLocation - tolerance, genomicLocation + tolerance);
+
+        if (this.callSets && featureList && featureList.length > 0) {
+
+            featureList.forEach(function (variant) {
+
+
+                if ((variant.start <= genomicLocation + tolerance) &&
+                    (variant.end > genomicLocation - tolerance)) {
+                    // var content = igv.formatPopoverText(['Ascending', 'Descending', 'Repeat Number']);
+                    //igv.popover.presentContent(event.pageX, event.pageY, [$asc, $desc]);
+
+                    if ('str' === variant.type) {
+                        menuItems.push({
+                            name: 'Sort by allele length (Desc)',
+                            click: function () {
+                                self.sortCallsets(variant, 'DESC');
+                                self.trackView.update();
+                                config.popover.hide();
+                            }
+                        });
+                        menuItems.push({
+                            name: 'Sort by allele length (Asc)',
+                            click: function () {
+                                self.sortCallsets(variant, 'ASC');
+                                self.trackView.update();
+                                config.popover.hide();
+                            }
+                        });
+                    }
+                }
+            });
+        }
+
+        return menuItems;
+
+    };
 
     igv.VariantTrack.prototype.menuItemList = function (popover) {
 
@@ -25563,34 +27565,32 @@ var igv = (function (igv) {
  */
 var igv = (function (igv) {
 
-    igv.Viewport = function (trackView, locusIndex) {
-        this.initializationHelper(trackView, locusIndex);
+    igv.Viewport = function (trackView, $container, locusIndex) {
+        this.initializationHelper(trackView, $container, locusIndex);
     };
 
-    igv.Viewport.prototype.initializationHelper = function (trackView, locusIndex) {
+    igv.Viewport.prototype.initializationHelper = function (trackView, $container, locusIndex) {
 
         var self = this,
             description,
             $trackLabel,
             $spinner,
-            dimen;
+            dimen,
+            $div;
 
         this.trackView = trackView;
         this.id = _.uniqueId('viewport_');
         this.genomicState = igv.browser.genomicStateList[ locusIndex ];
 
         this.$viewport = $('<div class="igv-viewport-div">');
+        $container.append(this.$viewport);
+
         this.$viewport.data( "viewport", this.id );
         this.$viewport.data( "locusindex", this.genomicState.locusIndex );
 
         addViewportBorders(this.$viewport, this.genomicState.locusIndex, _.size(igv.browser.genomicStateList));
 
-        // TODO diagnostic coloring
-        // this.$viewport.css("background-color", igv.randomRGBConstantAlpha(200, 255, 0.75));
-
         this.setWidth(igv.browser.viewportContainerWidth()/this.genomicState.locusCount);
-
-        this.trackView.$viewportContainer.append( this.$viewport );
 
         this.contentDiv = $('<div class="igv-viewport-content-div">')[0];
         this.$viewport.append(this.contentDiv);
@@ -25599,35 +27599,38 @@ var igv = (function (igv) {
             this.$viewport.addClass('igv-viewport-sequence');
         }
 
-        if (this.genomicState.locusCount > 1) {
+        if (trackView.track instanceof igv.RulerTrack) {
+            $div = $('<div>', { class:'igv-whole-genome-container' });
+            $(this.contentDiv).append($div);
+            $div.hide();
+        }
 
-            if (trackView.track instanceof igv.RulerTrack) {
+        if (this.genomicState.locusCount > 1 && trackView.track instanceof igv.RulerTrack) {
 
-                this.$viewport.addClass('igv-viewport-ruler');
+            this.$viewport.addClass('igv-viewport-ruler');
 
-                this.$close = $('<div class="igv-viewport-fa-close">');
-                this.$closeButton = $('<i class="fa fa-times-circle">');
-                this.$close.append(this.$closeButton);
+            this.$close = $('<div class="igv-viewport-fa-close">');
+            this.$closeButton = $('<i class="fa fa-times-circle">');
+            this.$close.append(this.$closeButton);
 
-                this.$close.click(function (e) {
-                    igv.browser.closeMultiLocusPanelWithGenomicState(self.genomicState);
-                });
+            this.$close.click(function (e) {
+                igv.browser.closeMultiLocusPanelWithGenomicState(self.genomicState);
+            });
 
-                this.$viewport.append(this.$close);
-            }
+            this.$viewport.append(this.$close);
         }
 
         // track content canvas
         this.canvas = $('<canvas>')[0];
+
         $(this.contentDiv).append(this.canvas);
+
         this.canvas.setAttribute('width', this.contentDiv.clientWidth);
         this.canvas.setAttribute('height', this.contentDiv.clientHeight);
         this.ctx = this.canvas.getContext("2d");
 
-        if (this.genomicState.locusCount > 1) {
-            if (trackView.track instanceof igv.RulerTrack) {
-                $(this.contentDiv).append(igv.browser.rulerTrack.locusLabelWithViewport(this));
-            }
+        if (this.genomicState.locusCount > 1 && trackView.track instanceof igv.RulerTrack) {
+            $(this.contentDiv).append(igv.browser.rulerTrack.locusLabelWithViewport(this));
         }
 
         // zoom in to see features
@@ -25670,12 +27673,11 @@ var igv = (function (igv) {
 
         }
 
-        this.addMouseHandlers();
-
         if (trackView.track instanceof igv.RulerTrack) {
-
             // do nothing
         } else {
+            this.addMouseHandlers();
+
             dimen = this.$viewport.height();
             if (dimen > 32) {
                 dimen = 32;
@@ -25688,6 +27690,7 @@ var igv = (function (igv) {
             $spinner.append($('<i class="fa fa-spinner fa-spin fa-fw">'));
             this.$viewport.append($spinner);
             this.stopSpinner();
+
         }
 
         function addViewportBorders ($viewport, locusIndex, lociCount) {
@@ -25723,235 +27726,130 @@ var igv = (function (igv) {
             popupTimer,
             doubleClickDelay;
 
-        if (self.trackView.track instanceof igv.RulerTrack) {
-            self.addRulerMouseHandlers();
-        } else {
+        doubleClickDelay = igv.browser.constants.doubleClickDelay;
 
-            doubleClickDelay = igv.browser.constants.doubleClickDelay;
+        // right-click
+        $(self.canvas).contextmenu(function(e) {
 
-            // right-click
-            $(self.canvas).contextmenu(function(e) {
+            e.preventDefault();
+            e = $.event.fix(e);
+            e.stopPropagation();
 
-                e.preventDefault();
-                e = $.event.fix(e);
-                e.stopPropagation();
+            igv.popover.presentTrackPopupMenu(e, self);
 
-                igv.popover.presentTrackPopupMenu(e, self);
-
-            });
-
-            $(self.canvas).mousedown(function (e) {
-                var canvasCoords;
-
-                e.preventDefault();
-
-                isMouseDown = true;
-                canvasCoords = igv.translateMouseCoordinates(e, self.canvas);
-                lastMouseX = canvasCoords.x;
-                mouseDownX = lastMouseX;
-            });
-
-            $(self.canvas).click(function (e) {
-
-                var canvasCoords,
-                    referenceFrame,
-                    genomicLocation,
-                    time,
-                    newCenter,
-                    widthBP,
-                    chr;
-
-                e.preventDefault();
-                e = $.event.fix(e);
-                e.stopPropagation();
-
-                referenceFrame = self.genomicState.referenceFrame;
-                if (undefined === referenceFrame) {
-                    console.log('undefined === referenceFrame');
-                    return;
-                }
-
-                canvasCoords = igv.translateMouseCoordinates(e, self.canvas);
-                genomicLocation = Math.floor((referenceFrame.start) + referenceFrame.toBP(canvasCoords.x));
-                time = Date.now();
-
-                if (time - lastClickTime < doubleClickDelay) {
-                    // This is a double-click
-
-                    // if (_.size(igv.browser.genomicStateList) > 1) {
-                    //     // ignore
-                    // } else {
-
-                    if (popupTimer) {
-                        // Cancel previous timer
-                        window.clearTimeout(popupTimer);
-                        popupTimer = undefined;
-                    }
-
-                    if (igv.browser.minimumBasesExtent() > Math.floor(self.$viewport.width() * referenceFrame.bpPerPixel/2.0)) {
-                        // do nothing
-                    } else {
-                        newCenter = Math.round(referenceFrame.start + canvasCoords.x * referenceFrame.bpPerPixel);
-                        if(referenceFrame.chrName === "all") {
-                            chr = igv.browser.genome.getChromosomeCoordinate(newCenter).chr;
-                            igv.browser.search(chr);
-
-                        } else {
-                            self.genomicState.referenceFrame.bpPerPixel /= 2;
-                            self.genomicState.referenceFrame.start = Math.round((newCenter + self.genomicState.referenceFrame.start)/2.0 );
-                            igv.browser.updateWithLocusIndex(self.genomicState.locusIndex);
-
-                        }
-
-                    }
-
-                    // }
-
-                } else {
-
-                    if (e.shiftKey) {
-
-                        if (self.trackView.track.shiftClick && self.tile) {
-                            self.trackView.track.shiftClick(genomicLocation, e);
-                        }
-
-                    } else if (e.altKey) {
-
-                        if (self.trackView.track.altClick && self.tile) {
-                            self.trackView.track.altClick(genomicLocation, referenceFrame, e);
-                        }
-
-                    } else if (Math.abs(canvasCoords.x - mouseDownX) <= igv.browser.constants.dragThreshold && self.trackView.track.popupDataWithConfiguration) {
-
-                        popupTimer = window.setTimeout(function () {
-
-                                igv.popover.presentTrackPopup(e, self);
-
-                                mouseDownX = undefined;
-                                popupTimer = undefined;
-                            },
-                            doubleClickDelay);
-                    }
-                }
-
-                mouseDownX = undefined;
-                isMouseDown = false;
-                lastMouseX = undefined;
-                lastClickTime = time;
-
-            });
-
-        }
-
-    };
-
-    igv.Viewport.prototype.addRulerMouseHandlers = function () {
-
-        var self = this,
-            isMouseDown = undefined,
-            isMouseIn = undefined,
-            mouseDownXY = undefined,
-            mouseMoveXY = undefined,
-            left,
-            rulerSweepWidth,
-            rulerSweepThreshold = 1,
-            dx;
-
-        this.removeRulerMouseHandlers();
-
-        if ('all' === this.genomicState.chromosome.name) {
-            return;
-        }
-        // self.trackView.trackDiv.dataset.rulerTrack = "rulerTrack";
-
-        // ruler sweeper widget surface
-        self.$rulerSweeper = $('<div class="igv-ruler-sweeper-div">');
-        $(self.contentDiv).append(self.$rulerSweeper);
-
-        this.$viewport.on({
-
-            mousedown: function (e) {
-
-                e.preventDefault();
-
-                $(self.contentDiv).off();
-
-                $(self.contentDiv).on({
-                    mousedown: function (e) {
-                        isMouseDown = true;
-                    }
-                });
-
-                mouseDownXY = igv.translateMouseCoordinates(e, self.contentDiv);
-
-                left = mouseDownXY.x;
-                rulerSweepWidth = 0;
-                self.$rulerSweeper.css({"display": "inline", "left": left + "px", "width": rulerSweepWidth + "px"});
-
-                isMouseIn = true;
-            },
-
-            mousemove: function (e) {
-
-                e.preventDefault();
-
-                if (isMouseDown && isMouseIn) {
-
-                    mouseMoveXY = igv.translateMouseCoordinates(e, self.contentDiv);
-                    dx = mouseMoveXY.x - mouseDownXY.x;
-                    rulerSweepWidth = Math.abs(dx);
-
-                    if (rulerSweepWidth > rulerSweepThreshold) {
-
-                        self.$rulerSweeper.css({"width": rulerSweepWidth + "px"});
-
-                        if (dx < 0) {
-
-                            if (mouseDownXY.x + dx < 0) {
-                                isMouseIn = false;
-                                left = 0;
-                            } else {
-                                left = mouseDownXY.x + dx;
-                            }
-                            self.$rulerSweeper.css({"left": left + "px"});
-                        }
-                    }
-                }
-            },
-
-            mouseup: function (e) {
-
-                var extent,
-                    referenceFrame;
-
-                if (isMouseDown) {
-
-                    // End sweep
-                    isMouseDown = false;
-                    isMouseIn = false;
-
-                    self.$rulerSweeper.css({"display": "none", "left": 0 + "px", "width": 0 + "px"});
-
-                    referenceFrame = self.genomicState.referenceFrame;
-
-                    extent = {};
-                    extent.start = referenceFrame.start + (left * referenceFrame.bpPerPixel);
-                    extent.end = extent.start + rulerSweepWidth * referenceFrame.bpPerPixel;
-
-                    if (rulerSweepWidth > rulerSweepThreshold) {
-                        igv.Browser.validateLocusExtent(igv.browser.genome.getChromosome(referenceFrame.chrName), extent);
-                        self.goto(referenceFrame.chrName, extent.start, extent.end);
-                    }
-                }
-
-            }
         });
 
-    };
+        $(self.canvas).mousedown(function (e) {
+            var canvasCoords;
 
-    igv.Viewport.prototype.removeRulerMouseHandlers = function () {
-        $(this.contentDiv).off();
-        this.$viewport.off();
+            e.preventDefault();
+
+            isMouseDown = true;
+            canvasCoords = igv.translateMouseCoordinates(e, self.canvas);
+            lastMouseX = canvasCoords.x;
+            mouseDownX = lastMouseX;
+        });
+
+        $(self.canvas).click(function (e) {
+
+            var canvasCoords,
+                referenceFrame,
+                genomicLocation,
+                time,
+                newCenter,
+                locusString,
+                loci,
+                chr;
+
+            e.preventDefault();
+            e = $.event.fix(e);
+            e.stopPropagation();
+
+            referenceFrame = self.genomicState.referenceFrame;
+            if (undefined === referenceFrame) {
+                console.log('undefined === referenceFrame');
+                return;
+            }
+
+            canvasCoords = igv.translateMouseCoordinates(e, self.canvas);
+            genomicLocation = Math.floor((referenceFrame.start) + referenceFrame.toBP(canvasCoords.x));
+            time = Date.now();
+
+            if (time - lastClickTime < doubleClickDelay) {
+                // This is a double-click
+
+                if (popupTimer) {
+                    // Cancel previous timer
+                    window.clearTimeout(popupTimer);
+                    popupTimer = undefined;
+                }
+
+                if (igv.browser.minimumBasesExtent() > Math.floor(self.$viewport.width() * referenceFrame.bpPerPixel/2.0)) {
+                    // do nothing
+                } else {
+                    newCenter = Math.round(referenceFrame.start + canvasCoords.x * referenceFrame.bpPerPixel);
+                    if('all' === referenceFrame.chrName.toLowerCase()) {
+
+                        chr = igv.browser.genome.getChromosomeCoordinate(newCenter).chr;
+
+                        if (1 === self.genomicState.locusCount) {
+                            locusString = chr;
+                        } else {
+                            loci = _.map(igv.browser.genomicStateList, function (g) {
+                                return g.locusSearchString;
+                            });
+
+                            loci[ self.genomicState.locusIndex ] = chr;
+                            locusString = loci.join(' ');
+                        }
+
+                        igv.browser.parseSearchInput(locusString);
+
+                    } else {
+                        self.genomicState.referenceFrame.bpPerPixel /= 2;
+                        self.genomicState.referenceFrame.start = Math.round((newCenter + self.genomicState.referenceFrame.start)/2.0 );
+                        igv.browser.updateWithLocusIndex(self.genomicState.locusIndex);
+
+                    }
+
+                }
+
+                // }
+
+            } else {
+
+                if (e.shiftKey) {
+
+                    if (self.trackView.track.shiftClick && self.tile) {
+                        self.trackView.track.shiftClick(genomicLocation, e);
+                    }
+
+                } else if (e.altKey) {
+
+                    if (self.trackView.track.altClick && self.tile) {
+                        self.trackView.track.altClick(genomicLocation, referenceFrame, e);
+                    }
+
+                } else if (Math.abs(canvasCoords.x - mouseDownX) <= igv.browser.constants.dragThreshold && self.trackView.track.popupDataWithConfiguration) {
+
+                    popupTimer = window.setTimeout(function () {
+
+                            igv.popover.presentTrackPopup(e, self);
+
+                            mouseDownX = undefined;
+                            popupTimer = undefined;
+                        },
+                        doubleClickDelay);
+                }
+            }
+
+            mouseDownX = undefined;
+            isMouseDown = false;
+            lastMouseX = undefined;
+            lastClickTime = time;
+
+        });
+
     };
 
     igv.Viewport.prototype.goto = function (chr, start, end) {
@@ -26021,7 +27919,7 @@ var igv = (function (igv) {
 
         if (this.$zoomInNotice && this.trackView.track.visibilityWindow !== undefined && this.trackView.track.visibilityWindow > 0) {
             if ((referenceFrame.bpPerPixel * this.$viewport.width() > this.trackView.track.visibilityWindow) ||
-                (referenceFrame.chrName === "all" && !this.trackView.track.supportsWholeGenome)) {
+                (referenceFrame.chrName.toLowerCase() === "all" && !this.trackView.track.supportsWholeGenome)) {
                 this.tile = null;
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
@@ -26341,7 +28239,7 @@ var igv = (function (igv) {
             referenceFrame,
             length;
 
-        if (1 === genomicState.locusCount && 'all' !== genomicState.locusSearchString) {
+        if (1 === genomicState.locusCount && 'all' !== genomicState.locusSearchString.toLowerCase()) {
             this.show();
         } else {
             this.hide();
@@ -28792,398 +30690,351 @@ k+4&&(this.a=new Uint8Array(g.length+4),this.a.set(g),g=this.a),g=g.subarray(0,k
 
 }));
 
-(function(global){
+(function (global) {
 
 //
 // Check for native Promise and it has correct interface
 //
 
-var NativePromise = global['Promise'];
-var nativePromiseSupported =
-  NativePromise &&
-  // Some of these methods are missing from
-  // Firefox/Chrome experimental implementations
-  'resolve' in NativePromise &&
-  'reject' in NativePromise &&
-  'all' in NativePromise &&
-  'race' in NativePromise &&
-  // Older version of the spec had a resolver object
-  // as the arg rather than a function
-  (function(){
-    var resolve;
-    new NativePromise(function(r){ resolve = r; });
-    return typeof resolve === 'function';
-  })();
+    var NativePromise = global['Promise'];
+    var nativePromiseSupported =
+        NativePromise &&
+        // Some of these methods are missing from
+        // Firefox/Chrome experimental implementations
+        'resolve' in NativePromise &&
+        'reject' in NativePromise &&
+        'all' in NativePromise &&
+        'race' in NativePromise &&
+        // Older version of the spec had a resolver object
+        // as the arg rather than a function
+        (function () {
+            var resolve;
+            new NativePromise(function (r) {
+                resolve = r;
+            });
+            return typeof resolve === 'function';
+        })();
 
 
 //
 // export if necessary
 //
 
-if (typeof exports !== 'undefined' && exports)
-{
-  // node.js
-  exports.Promise = nativePromiseSupported ? NativePromise : Promise;
-  exports.Polyfill = Promise;
-}
-else
-{
-  // AMD
-  if (typeof define == 'function' && define.amd)
-  {
-    define(function(){
-      return nativePromiseSupported ? NativePromise : Promise;
-    });
-  }
-  else
-  {
-    // in browser add to global
-    if (!nativePromiseSupported)
-      global['Promise'] = Promise;
-  }
-}
+    if (!nativePromiseSupported) {
+        global['Promise'] = Promise;
+    }
 
 
 //
 // Polyfill
 //
 
-var PENDING = 'pending';
-var SEALED = 'sealed';
-var FULFILLED = 'fulfilled';
-var REJECTED = 'rejected';
-var NOOP = function(){};
-
-function isArray(value) {
-  return Object.prototype.toString.call(value) === '[object Array]';
-}
-
-// async calls
-var asyncSetTimer = typeof setImmediate !== 'undefined' ? setImmediate : setTimeout;
-var asyncQueue = [];
-var asyncTimer;
-
-function asyncFlush(){
-  // run promise callbacks
-  for (var i = 0; i < asyncQueue.length; i++)
-    asyncQueue[i][0](asyncQueue[i][1]);
-
-  // reset async asyncQueue
-  asyncQueue = [];
-  asyncTimer = false;
-}
-
-function asyncCall(callback, arg){
-  asyncQueue.push([callback, arg]);
-
-  if (!asyncTimer)
-  {
-    asyncTimer = true;
-    asyncSetTimer(asyncFlush, 0);
-  }
-}
-
-
-function invokeResolver(resolver, promise) {
-  function resolvePromise(value) {
-    resolve(promise, value);
-  }
-
-  function rejectPromise(reason) {
-    reject(promise, reason);
-  }
-
-  try {
-    resolver(resolvePromise, rejectPromise);
-  } catch(e) {
-    rejectPromise(e);
-  }
-}
-
-function invokeCallback(subscriber){
-  var owner = subscriber.owner;
-  var settled = owner.state_;
-  var value = owner.data_;  
-  var callback = subscriber[settled];
-  var promise = subscriber.then;
-
-  if (typeof callback === 'function')
-  {
-    settled = FULFILLED;
-    try {
-      value = callback(value);
-    } catch(e) {
-      reject(promise, e);
-    }
-  }
-
-  if (!handleThenable(promise, value))
-  {
-    if (settled === FULFILLED)
-      resolve(promise, value);
-
-    if (settled === REJECTED)
-      reject(promise, value);
-  }
-}
-
-function handleThenable(promise, value) {
-  var resolved;
-
-  try {
-    if (promise === value)
-      throw new TypeError('A promises callback cannot return that same promise.');
-
-    if (value && (typeof value === 'function' || typeof value === 'object'))
-    {
-      var then = value.then;  // then should be retrived only once
-
-      if (typeof then === 'function')
-      {
-        then.call(value, function(val){
-          if (!resolved)
-          {
-            resolved = true;
-
-            if (value !== val)
-              resolve(promise, val);
-            else
-              fulfill(promise, val);
-          }
-        }, function(reason){
-          if (!resolved)
-          {
-            resolved = true;
-
-            reject(promise, reason);
-          }
-        });
-
-        return true;
-      }
-    }
-  } catch (e) {
-    if (!resolved)
-      reject(promise, e);
-
-    return true;
-  }
-
-  return false;
-}
-
-function resolve(promise, value){
-  if (promise === value || !handleThenable(promise, value))
-    fulfill(promise, value);
-}
-
-function fulfill(promise, value){
-  if (promise.state_ === PENDING)
-  {
-    promise.state_ = SEALED;
-    promise.data_ = value;
-
-    asyncCall(publishFulfillment, promise);
-  }
-}
-
-function reject(promise, reason){
-  if (promise.state_ === PENDING)
-  {
-    promise.state_ = SEALED;
-    promise.data_ = reason;
-
-    asyncCall(publishRejection, promise);
-  }
-}
-
-function publish(promise) {
-  var callbacks = promise.then_;
-  promise.then_ = undefined;
-
-  for (var i = 0; i < callbacks.length; i++) {
-    invokeCallback(callbacks[i]);
-  }
-}
-
-function publishFulfillment(promise){
-  promise.state_ = FULFILLED;
-  publish(promise);
-}
-
-function publishRejection(promise){
-  promise.state_ = REJECTED;
-  publish(promise);
-}
-
-/**
-* @class
-*/
-function Promise(resolver){
-  if (typeof resolver !== 'function')
-    throw new TypeError('Promise constructor takes a function argument');
-
-  if (this instanceof Promise === false)
-    throw new TypeError('Failed to construct \'Promise\': Please use the \'new\' operator, this object constructor cannot be called as a function.');
-
-  this.then_ = [];
-
-  invokeResolver(resolver, this);
-}
-
-Promise.prototype = {
-  constructor: Promise,
-
-  state_: PENDING,
-  then_: null,
-  data_: undefined,
-
-  then: function(onFulfillment, onRejection){
-    var subscriber = {
-      owner: this,
-      then: new this.constructor(NOOP),
-      fulfilled: onFulfillment,
-      rejected: onRejection
+    var PENDING = 'pending';
+    var SEALED = 'sealed';
+    var FULFILLED = 'fulfilled';
+    var REJECTED = 'rejected';
+    var NOOP = function () {
     };
 
-    if (this.state_ === FULFILLED || this.state_ === REJECTED)
-    {
-      // already resolved, call callback async
-      asyncCall(invokeCallback, subscriber);
-    }
-    else
-    {
-      // subscribe
-      this.then_.push(subscriber);
+    function isArray(value) {
+        return Object.prototype.toString.call(value) === '[object Array]';
     }
 
-    return subscriber.then;
-  },
+// async calls
+    var asyncSetTimer = typeof setImmediate !== 'undefined' ? setImmediate : setTimeout;
+    var asyncQueue = [];
+    var asyncTimer;
 
-  'catch': function(onRejection) {
-    return this.then(null, onRejection);
-  }
-};
+    function asyncFlush() {
+        // run promise callbacks
+        for (var i = 0; i < asyncQueue.length; i++)
+            asyncQueue[i][0](asyncQueue[i][1]);
 
-Promise.all = function(promises){
-  var Class = this;
-
-  if (!isArray(promises))
-    throw new TypeError('You must pass an array to Promise.all().');
-
-  return new Class(function(resolve, reject){
-    var results = [];
-    var remaining = 0;
-
-    function resolver(index){
-      remaining++;
-      return function(value){
-        results[index] = value;
-        if (!--remaining)
-          resolve(results);
-      };
+        // reset async asyncQueue
+        asyncQueue = [];
+        asyncTimer = false;
     }
 
-    for (var i = 0, promise; i < promises.length; i++)
-    {
-      promise = promises[i];
+    function asyncCall(callback, arg) {
+        asyncQueue.push([callback, arg]);
 
-      if (promise && typeof promise.then === 'function')
-        promise.then(resolver(i), reject);
-      else
-        results[i] = promise;
+        if (!asyncTimer) {
+            asyncTimer = true;
+            asyncSetTimer(asyncFlush, 0);
+        }
     }
 
-    if (!remaining)
-      resolve(results);
-  });
-};
 
-Promise.race = function(promises){
-  var Class = this;
+    function invokeResolver(resolver, promise) {
+        function resolvePromise(value) {
+            resolve(promise, value);
+        }
 
-  if (!isArray(promises))
-    throw new TypeError('You must pass an array to Promise.race().');
+        function rejectPromise(reason) {
+            reject(promise, reason);
+        }
 
-  return new Class(function(resolve, reject) {
-    for (var i = 0, promise; i < promises.length; i++)
-    {
-      promise = promises[i];
-
-      if (promise && typeof promise.then === 'function')
-        promise.then(resolve, reject);
-      else
-        resolve(promise);
+        try {
+            resolver(resolvePromise, rejectPromise);
+        } catch (e) {
+            rejectPromise(e);
+        }
     }
-  });
-};
 
-Promise.resolve = function(value){
-  var Class = this;
+    function invokeCallback(subscriber) {
+        var owner = subscriber.owner;
+        var settled = owner.state_;
+        var value = owner.data_;
+        var callback = subscriber[settled];
+        var promise = subscriber.then;
 
-  if (value && typeof value === 'object' && value.constructor === Class)
-    return value;
+        if (typeof callback === 'function') {
+            settled = FULFILLED;
+            try {
+                value = callback(value);
+            } catch (e) {
+                reject(promise, e);
+            }
+        }
 
-  return new Class(function(resolve){
-    resolve(value);
-  });
-};
+        if (!handleThenable(promise, value)) {
+            if (settled === FULFILLED)
+                resolve(promise, value);
 
-Promise.reject = function(reason){
-  var Class = this;
+            if (settled === REJECTED)
+                reject(promise, value);
+        }
+    }
 
-  return new Class(function(resolve, reject){
-    reject(reason);
-  });
-};
+    function handleThenable(promise, value) {
+        var resolved;
+
+        try {
+            if (promise === value)
+                throw new TypeError('A promises callback cannot return that same promise.');
+
+            if (value && (typeof value === 'function' || typeof value === 'object')) {
+                var then = value.then;  // then should be retrived only once
+
+                if (typeof then === 'function') {
+                    then.call(value, function (val) {
+                        if (!resolved) {
+                            resolved = true;
+
+                            if (value !== val)
+                                resolve(promise, val);
+                            else
+                                fulfill(promise, val);
+                        }
+                    }, function (reason) {
+                        if (!resolved) {
+                            resolved = true;
+
+                            reject(promise, reason);
+                        }
+                    });
+
+                    return true;
+                }
+            }
+        } catch (e) {
+            if (!resolved)
+                reject(promise, e);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    function resolve(promise, value) {
+        if (promise === value || !handleThenable(promise, value))
+            fulfill(promise, value);
+    }
+
+    function fulfill(promise, value) {
+        if (promise.state_ === PENDING) {
+            promise.state_ = SEALED;
+            promise.data_ = value;
+
+            asyncCall(publishFulfillment, promise);
+        }
+    }
+
+    function reject(promise, reason) {
+        if (promise.state_ === PENDING) {
+            promise.state_ = SEALED;
+            promise.data_ = reason;
+
+            asyncCall(publishRejection, promise);
+        }
+    }
+
+    function publish(promise) {
+        var callbacks = promise.then_;
+        promise.then_ = undefined;
+
+        for (var i = 0; i < callbacks.length; i++) {
+            invokeCallback(callbacks[i]);
+        }
+    }
+
+    function publishFulfillment(promise) {
+        promise.state_ = FULFILLED;
+        publish(promise);
+    }
+
+    function publishRejection(promise) {
+        promise.state_ = REJECTED;
+        publish(promise);
+    }
+
+    /**
+     * @class
+     */
+    function Promise(resolver) {
+        if (typeof resolver !== 'function')
+            throw new TypeError('Promise constructor takes a function argument');
+
+        if (this instanceof Promise === false)
+            throw new TypeError('Failed to construct \'Promise\': Please use the \'new\' operator, this object constructor cannot be called as a function.');
+
+        this.then_ = [];
+
+        invokeResolver(resolver, this);
+    }
+
+    Promise.prototype = {
+        constructor: Promise,
+
+        state_: PENDING,
+        then_: null,
+        data_: undefined,
+
+        then: function (onFulfillment, onRejection) {
+            var subscriber = {
+                owner: this,
+                then: new this.constructor(NOOP),
+                fulfilled: onFulfillment,
+                rejected: onRejection
+            };
+
+            if (this.state_ === FULFILLED || this.state_ === REJECTED) {
+                // already resolved, call callback async
+                asyncCall(invokeCallback, subscriber);
+            }
+            else {
+                // subscribe
+                this.then_.push(subscriber);
+            }
+
+            return subscriber.then;
+        },
+
+        'catch': function (onRejection) {
+            return this.then(null, onRejection);
+        }
+    };
+
+    Promise.all = function (promises) {
+        var Class = this;
+
+        if (!isArray(promises))
+            throw new TypeError('You must pass an array to Promise.all().');
+
+        return new Class(function (resolve, reject) {
+            var results = [];
+            var remaining = 0;
+
+            function resolver(index) {
+                remaining++;
+                return function (value) {
+                    results[index] = value;
+                    if (!--remaining)
+                        resolve(results);
+                };
+            }
+
+            for (var i = 0, promise; i < promises.length; i++) {
+                promise = promises[i];
+
+                if (promise && typeof promise.then === 'function')
+                    promise.then(resolver(i), reject);
+                else
+                    results[i] = promise;
+            }
+
+            if (!remaining)
+                resolve(results);
+        });
+    };
+
+    Promise.race = function (promises) {
+        var Class = this;
+
+        if (!isArray(promises))
+            throw new TypeError('You must pass an array to Promise.race().');
+
+        return new Class(function (resolve, reject) {
+            for (var i = 0, promise; i < promises.length; i++) {
+                promise = promises[i];
+
+                if (promise && typeof promise.then === 'function')
+                    promise.then(resolve, reject);
+                else
+                    resolve(promise);
+            }
+        });
+    };
+
+    Promise.resolve = function (value) {
+        var Class = this;
+
+        if (value && typeof value === 'object' && value.constructor === Class)
+            return value;
+
+        return new Class(function (resolve) {
+            resolve(value);
+        });
+    };
+
+    Promise.reject = function (reason) {
+        var Class = this;
+
+        return new Class(function (resolve, reject) {
+            reject(reason);
+        });
+    };
 
 })(typeof window != 'undefined' ? window : typeof global != 'undefined' ? global : typeof self != 'undefined' ? self : this);
-
-/*
- * The MIT License (MIT)
- *
- * Copyright (c) 2014-2015 Broad Institute
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
-
-/**
- * Support for module definition.  This code should be last in the concatenated "igv.js" file.
- *
- */
-
-(function (factory) {
-    if ( typeof define === 'function' && define.amd ) {
-        // AMD. Register as an anonymous module.
-        define(['jquery'], factory);
-    } else if (typeof exports === 'object') {
-        // Node/CommonJS style for Browserify
-        module.exports = factory;
-    }
-}(function (ignored) {
-    if(igv === undefined)  igv = {};  // Define global igv object
-    return igv;
-}));
-
-
 
 /*! jquery.kinetic - v2.2.1 - 2015-09-09 http://the-taylors.org/jquery.kinetic 
  * Copyright (c) 2015 Dave Taylor; Licensed MIT */
 !function(a){"use strict";var b="kinetic-active";window.requestAnimationFrame||(window.requestAnimationFrame=function(){return window.webkitRequestAnimationFrame||window.mozRequestAnimationFrame||window.oRequestAnimationFrame||window.msRequestAnimationFrame||function(a){window.setTimeout(a,1e3/60)}}()),a.support=a.support||{},a.extend(a.support,{touch:"ontouchend"in document});var c=function(b,c){return this.settings=c,this.el=b,this.$el=a(b),this._initElements(),this};c.DATA_KEY="kinetic",c.DEFAULTS={cursor:"move",decelerate:!0,triggerHardware:!1,threshold:0,y:!0,x:!0,slowdown:.9,maxvelocity:40,throttleFPS:60,invert:!1,movingClass:{up:"kinetic-moving-up",down:"kinetic-moving-down",left:"kinetic-moving-left",right:"kinetic-moving-right"},deceleratingClass:{up:"kinetic-decelerating-up",down:"kinetic-decelerating-down",left:"kinetic-decelerating-left",right:"kinetic-decelerating-right"}},c.prototype.start=function(b){this.settings=a.extend(this.settings,b),this.velocity=b.velocity||this.velocity,this.velocityY=b.velocityY||this.velocityY,this.settings.decelerate=!1,this._move()},c.prototype.end=function(){this.settings.decelerate=!0},c.prototype.stop=function(){this.velocity=0,this.velocityY=0,this.settings.decelerate=!0,a.isFunction(this.settings.stopped)&&this.settings.stopped.call(this)},c.prototype.detach=function(){this._detachListeners(),this.$el.removeClass(b).css("cursor","")},c.prototype.attach=function(){this.$el.hasClass(b)||(this._attachListeners(this.$el),this.$el.addClass(b).css("cursor",this.settings.cursor))},c.prototype._initElements=function(){this.$el.addClass(b),a.extend(this,{xpos:null,prevXPos:!1,ypos:null,prevYPos:!1,mouseDown:!1,throttleTimeout:1e3/this.settings.throttleFPS,lastMove:null,elementFocused:null}),this.velocity=0,this.velocityY=0,a(document).mouseup(a.proxy(this._resetMouse,this)).click(a.proxy(this._resetMouse,this)),this._initEvents(),this.$el.css("cursor",this.settings.cursor),this.settings.triggerHardware&&this.$el.css({"-webkit-transform":"translate3d(0,0,0)","-webkit-perspective":"1000","-webkit-backface-visibility":"hidden"})},c.prototype._initEvents=function(){var b=this;this.settings.events={touchStart:function(a){var c;b._useTarget(a.target,a)&&(c=a.originalEvent.touches[0],b.threshold=b._threshold(a.target,a),b._start(c.clientX,c.clientY),a.stopPropagation())},touchMove:function(a){var c;b.mouseDown&&(c=a.originalEvent.touches[0],b._inputmove(c.clientX,c.clientY),a.preventDefault&&a.preventDefault())},inputDown:function(a){b._useTarget(a.target,a)&&(b.threshold=b._threshold(a.target,a),b._start(a.clientX,a.clientY),b.elementFocused=a.target,"IMG"===a.target.nodeName&&a.preventDefault(),a.stopPropagation())},inputEnd:function(a){b._useTarget(a.target,a)&&(b._end(),b.elementFocused=null,a.preventDefault&&a.preventDefault())},inputMove:function(a){b.mouseDown&&(b._inputmove(a.clientX,a.clientY),a.preventDefault&&a.preventDefault())},scroll:function(c){a.isFunction(b.settings.moved)&&b.settings.moved.call(b,b.settings),c.preventDefault&&c.preventDefault()},inputClick:function(a){return Math.abs(b.velocity)>0?(a.preventDefault(),!1):void 0},dragStart:function(a){return b._useTarget(a.target,a)&&b.elementFocused?!1:void 0},selectStart:function(c){return a.isFunction(b.settings.selectStart)?b.settings.selectStart.apply(b,arguments):b._useTarget(c.target,c)?!1:void 0}},this._attachListeners(this.$el,this.settings)},c.prototype._inputmove=function(b,c){{var d=this.$el;this.el}if((!this.lastMove||new Date>new Date(this.lastMove.getTime()+this.throttleTimeout))&&(this.lastMove=new Date,this.mouseDown&&(this.xpos||this.ypos))){var e=b-this.xpos,f=c-this.ypos;if(this.settings.invert&&(e*=-1,f*=-1),this.threshold>0){var g=Math.sqrt(e*e+f*f);if(this.threshold>g)return;this.threshold=0}this.elementFocused&&(a(this.elementFocused).blur(),this.elementFocused=null,d.focus()),this.settings.decelerate=!1,this.velocity=this.velocityY=0;var h=this.scrollLeft(),i=this.scrollTop();this.scrollLeft(this.settings.x?h-e:h),this.scrollTop(this.settings.y?i-f:i),this.prevXPos=this.xpos,this.prevYPos=this.ypos,this.xpos=b,this.ypos=c,this._calculateVelocities(),this._setMoveClasses(this.settings.movingClass),a.isFunction(this.settings.moved)&&this.settings.moved.call(this,this.settings)}},c.prototype._calculateVelocities=function(){this.velocity=this._capVelocity(this.prevXPos-this.xpos,this.settings.maxvelocity),this.velocityY=this._capVelocity(this.prevYPos-this.ypos,this.settings.maxvelocity),this.settings.invert&&(this.velocity*=-1,this.velocityY*=-1)},c.prototype._end=function(){this.xpos&&this.prevXPos&&this.settings.decelerate===!1&&(this.settings.decelerate=!0,this._calculateVelocities(),this.xpos=this.prevXPos=this.mouseDown=!1,this._move())},c.prototype._useTarget=function(b,c){return a.isFunction(this.settings.filterTarget)?this.settings.filterTarget.call(this,b,c)!==!1:!0},c.prototype._threshold=function(b,c){return a.isFunction(this.settings.threshold)?this.settings.threshold.call(this,b,c):this.settings.threshold},c.prototype._start=function(a,b){this.mouseDown=!0,this.velocity=this.prevXPos=0,this.velocityY=this.prevYPos=0,this.xpos=a,this.ypos=b},c.prototype._resetMouse=function(){this.xpos=!1,this.ypos=!1,this.mouseDown=!1},c.prototype._decelerateVelocity=function(a,b){return 0===Math.floor(Math.abs(a))?0:a*b},c.prototype._capVelocity=function(a,b){var c=a;return a>0?a>b&&(c=b):0-b>a&&(c=0-b),c},c.prototype._setMoveClasses=function(a){var b=this.settings,c=this.$el;c.removeClass(b.movingClass.up).removeClass(b.movingClass.down).removeClass(b.movingClass.left).removeClass(b.movingClass.right).removeClass(b.deceleratingClass.up).removeClass(b.deceleratingClass.down).removeClass(b.deceleratingClass.left).removeClass(b.deceleratingClass.right),this.velocity>0&&c.addClass(a.right),this.velocity<0&&c.addClass(a.left),this.velocityY>0&&c.addClass(a.down),this.velocityY<0&&c.addClass(a.up)},c.prototype._move=function(){var b=this._getScroller(),c=b[0],d=this,e=d.settings;e.x&&c.scrollWidth>0?(this.scrollLeft(this.scrollLeft()+this.velocity),Math.abs(this.velocity)>0&&(this.velocity=e.decelerate?d._decelerateVelocity(this.velocity,e.slowdown):this.velocity)):this.velocity=0,e.y&&c.scrollHeight>0?(this.scrollTop(this.scrollTop()+this.velocityY),Math.abs(this.velocityY)>0&&(this.velocityY=e.decelerate?d._decelerateVelocity(this.velocityY,e.slowdown):this.velocityY)):this.velocityY=0,d._setMoveClasses(e.deceleratingClass),a.isFunction(e.moved)&&e.moved.call(this,e),Math.abs(this.velocity)>0||Math.abs(this.velocityY)>0?this.moving||(this.moving=!0,window.requestAnimationFrame(function(){d.moving=!1,d._move()})):d.stop()},c.prototype._getScroller=function(){var b=this.$el;return(this.$el.is("body")||this.$el.is("html"))&&(b=a(window)),b},c.prototype.scrollLeft=function(a){var b=this._getScroller();return"number"!=typeof a?b.scrollLeft():(b.scrollLeft(a),void(this.settings.scrollLeft=a))},c.prototype.scrollTop=function(a){var b=this._getScroller();return"number"!=typeof a?b.scrollTop():(b.scrollTop(a),void(this.settings.scrollTop=a))},c.prototype._attachListeners=function(){var b=this.$el,c=this.settings;a.support.touch&&b.bind("touchstart",c.events.touchStart).bind("touchend",c.events.inputEnd).bind("touchmove",c.events.touchMove),b.mousedown(c.events.inputDown).mouseup(c.events.inputEnd).mousemove(c.events.inputMove),b.click(c.events.inputClick).scroll(c.events.scroll).bind("selectstart",c.events.selectStart).bind("dragstart",c.events.dragStart)},c.prototype._detachListeners=function(){var b=this.$el,c=this.settings;a.support.touch&&b.unbind("touchstart",c.events.touchStart).unbind("touchend",c.events.inputEnd).unbind("touchmove",c.events.touchMove),b.unbind("mousedown",c.events.inputDown).unbind("mouseup",c.events.inputEnd).unbind("mousemove",c.events.inputMove),b.unbind("click",c.events.inputClick).unbind("scroll",c.events.scroll).unbind("selectstart",c.events.selectStart).unbind("dragstart",c.events.dragStart)},a.Kinetic=c,a.fn.kinetic=function(b,d){return this.each(function(){var e=a(this),f=e.data(c.DATA_KEY),g=a.extend({},c.DEFAULTS,e.data(),"object"==typeof b&&b);f||e.data(c.DATA_KEY,f=new c(this,g)),"string"==typeof b&&f[b](d)})}}(window.jQuery||window.Zepto);
+/* Module header based on https://github.com/umdjs/umd/blob/master/templates/returnExports.js
+ */
+
+//  HEADER
+// (function (root, factory) {
+//     if (typeof define === 'function' && define.amd) {
+//         // AMD. Register as an anonymous module.
+//         define([], factory);
+//     } else if (typeof module === 'object' && module.exports) {
+//         // Node. Does not work with strict CommonJS, but
+//         // only CommonJS-like environments that support module.exports,
+//         // like Node.
+//         module.exports = factory();
+//     } else {
+//         // Browser globals (root is window)
+//         root.igv = factory();
+//     }
+//}(this, function () {
+
+    // Just return a value to define the module export.
+    // This example returns an object, but the module
+    // can return a function as the exported value.
+    return igv;
+
+}));
+
+

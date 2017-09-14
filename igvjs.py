@@ -42,7 +42,7 @@ seen_tokens = set()
 # routes
 @app.route('/')
 def show_vcf():
-    return render_template('igv.html')
+    return render_template('str.html')
 
 @app.route('/data/<path:path>')
 def get_data_list(path):
