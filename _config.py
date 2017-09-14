@@ -1,5 +1,5 @@
 ALLOWED_EMAILS = "allowed_emails.txt"
-USES_OAUTH = True
+USES_OAUTH = False
 PUBLIC_DIR = "/static/data/public"
 ENABLE_CORS_REQUESTS = False
 
