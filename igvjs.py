@@ -32,10 +32,10 @@ install pysam (pip install pysam) if you wish to use the alignments service.'
 
 if app.config['ENABLE_UCSC_SERVICE']:
     try:
-        import MySQLdb
+        import mysql.connector
     except ImportError:
-        print 'UCSC service is enabled but MySQL-python is not installed. Please\
-install MySQL-python (pip install MySQL-python) if you wish to use the UCSC service.'
+        print 'UCSC service is enabled but mysql.connector is not installed. Please\
+install MySQL-python (pip install mysql-connector==2.1.4) if you wish to use the UCSC service.'
 
 seen_tokens = set()
 
@@ -115,7 +115,7 @@ not installed pysam.'
 
 @app.route('/ucsc')
 def query_ucsc():
-    if 'MySQLdb' not in sys.modules:
+    if 'mysql.connector' not in sys.modules:
         return 'Either you have not enabled the UCSC library or you have \
 not installed MySQL-python.'
 
@@ -148,7 +148,7 @@ not installed MySQL-python.'
     chrom = m.group(1)
 
     try:
-        db = MySQLdb.connect(host=ucsc_host, user=ucsc_user, db=db)
+        db = mysql.connector.connect(host=ucsc_host, user=ucsc_user, database=db)
         cur = db.cursor()
 
         cur.execute("SELECT * FROM information_schema.COLUMNS \
@@ -173,14 +173,14 @@ AND bin in "+bin_str, (chrom, start, end))
         for row in cur.fetchall():
             row_dict = {}
             for name, value in zip(cur.description, row):
-                row_dict[name[0]] = value
+                row_dict[name[0]] = str(value)
             results.append(row_dict)
 
-    except MySQLdb.Error, e:
+    except mysql.connector.Error, e:
         try:
-            return "MySQL Error [{}]: {}".format(e.args[0], e.args[1])
+            return "mysql Error [{}]: {}".format(e.args[0], e.args[1])
         except IndexError:
-            return "MySQL Error: {}".format(str(e))
+            return "mysql Error: {}".format(str(e))
 
     finally:
         cur.close()
