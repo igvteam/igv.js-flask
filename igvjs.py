@@ -164,8 +164,7 @@ WHERE TABLE_NAME = %s AND COLUMN_NAME = 'bin' LIMIT 1", (table,))
             bin_str = '('+','.join(str(bin) for bin in bins)+')'
 
             cur.execute("SELECT * FROM "+table+" WHERE chrom = %s \
-AND chromStart >= %s AND chromEnd <= %s \
-AND bin in "+bin_str, (chrom, start, end))
+AND bin in "+bin_str, (chrom,))
 
         else:
             cur.execute("SELECT * FROM "+table+" WHERE chrom = %s", (chrom,))
