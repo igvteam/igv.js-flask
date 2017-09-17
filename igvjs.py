@@ -35,7 +35,7 @@ if app.config['ENABLE_UCSC_SERVICE']:
         import mysql.connector
     except ImportError:
         print 'UCSC service is enabled but mysql.connector is not installed. Please\
-install MySQL-python (pip install mysql-connector==2.1.4) if you wish to use the UCSC service.'
+install mysql-connector (pip install mysql-connector==2.1.4) if you wish to use the UCSC service.'
 
 seen_tokens = set()
 
@@ -117,7 +117,7 @@ not installed pysam.'
 def query_ucsc():
     if 'mysql.connector' not in sys.modules:
         return 'Either you have not enabled the UCSC library or you have \
-not installed MySQL-python.'
+not installed mysql-connector (pip install mysql-connector==2.1.4).'
 
     results = []
 
@@ -148,11 +148,11 @@ not installed MySQL-python.'
     chrom = m.group(1)
 
     try:
-        db = mysql.connector.connect(host=ucsc_host, user=ucsc_user, database=db)
-        cur = db.cursor()
+        connection = mysql.connector.connect(host=ucsc_host, user=ucsc_user, database=db)
+        cur = connection.cursor()
 
         cur.execute("SELECT * FROM information_schema.COLUMNS \
-WHERE TABLE_NAME = %s AND COLUMN_NAME = 'bin'", (table,))
+WHERE TABLE_NAME = %s AND COLUMN_NAME = 'bin' LIMIT 1", (table,))
 
         if cur.fetchone():
             m = re.search(chrom+':(\d+)-(\d*)', genomic_range)
@@ -184,7 +184,7 @@ AND bin in "+bin_str, (chrom, start, end))
 
     finally:
         cur.close()
-        db.close()
+        connection.close()
 
     return jsonify(results)
 
