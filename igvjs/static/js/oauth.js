@@ -6,7 +6,7 @@ function handleSignInClick(event) {
 
 function initBrowserWithOAuth() {
 
-  var scope = "https://www.googleapis.com/auth/userinfo.profile;
+  var scope = "https://www.googleapis.com/auth/userinfo.profile";
   // Note:  to use Google platforms (GCS and Genomics) add the following scopes
   //      "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/genomics https://www.googleapis.com/auth/devstorage.read_only",
    var       client_id = "661332306814-8nt29308rppg325bkq372vli8nm3na14.apps.googleusercontent.com";
