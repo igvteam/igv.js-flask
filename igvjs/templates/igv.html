@@ -28,7 +28,9 @@
     <!-- Vendor JS -->
     <script type="text/javascript" src="{{ url_for('static', filename='js/igv.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/init.js') }}"></script>
+    {% if config.USES_OAUTH %}
     <script type="text/javascript" src="{{ url_for('static', filename='js/oauth.js') }}"></script>
+    {% endif %}
 
     <script src="https://apis.google.com/js/api.js"></script>
 
