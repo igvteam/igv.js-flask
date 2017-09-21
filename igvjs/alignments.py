@@ -45,11 +45,11 @@ def build_view_args(filename, region, reference=None, options=None):
         args.append(unquote(options))
 
     if reference:
-        reference = os.path.join(basedir,"static/alignments/refs/" + reference + ".fa")
+        #reference = os.path.join(basedir,"static/alignments/refs/" + reference + ".fa")
         args.append("-T")
         args.append(reference)
 
-    filename = os.path.join(basedir, "static/alignments/files/" + filename)
+    #filename = os.path.join(basedir, "static/alignments/files/" + filename)
     args.append(filename)
     args.append(region)
 
