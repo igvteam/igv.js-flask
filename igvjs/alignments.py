@@ -1,23 +1,23 @@
-import sys
 import os
 from flask import request, url_for, Blueprint
 from _config import basedir
 
-err_message = 'Alignments service is enabled but pysam is not installed. Please \
-install pysam (pip install pysam) if you wish to use the alignments service.'
+err_message = 'pysam is not installed. Please install pysam (pip install pysam) '\
+'if you wish to use the alignments service.'
 
+pysam_installed = True
 try:
     import pysam
     from urllib import unquote
 except ImportError:
-    print err_message
+    pysam_installed = False
 
 alignments_blueprint = Blueprint('alignments', __name__, url_prefix='/alignments')
 
 #alignments route
 @alignments_blueprint.route('/')
 def alignments():
-    if 'pysam' not in sys.modules:
+    if not pysam_installed:
         return err_message
 
     filename = request.args.get('file')

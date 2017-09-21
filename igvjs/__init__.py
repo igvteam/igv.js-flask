@@ -17,9 +17,5 @@ from igvjs.ucsc import ucsc_blueprint
 from igvjs.alignments import alignments_blueprint
 
 app.register_blueprint(igvjs_blueprint)
-
-if app.config['ENABLE_ALIGNMENT_SERVICE']:
-    app.register_blueprint(alignments_blueprint)
-
-if app.config['ENABLE_UCSC_SERVICE']:
-    app.register_blueprint(ucsc_blueprint)
+app.register_blueprint(alignments_blueprint)
+app.register_blueprint(ucsc_blueprint)

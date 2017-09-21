@@ -1,22 +1,21 @@
-import sys
 import re
 from flask import request, jsonify, Blueprint
 
-err_message = 'UCSC service is enabled but mysql.connector is not installed. ' \
-    'Please install mysql-connector (pip install mysql-connector==2.1.4) ' \
-    'if you wish to use the UCSC service.'
+err_message = 'mysql.connector is not installed. Please install mysql-connector ' \
+    '(pip install mysql-connector==2.1.4) if you wish to use the UCSC service.'
 
+mysql_installed = True
 try:
     import mysql.connector
 except ImportError:
-    print err_message
+    mysql_installed = False
 
 ucsc_blueprint = Blueprint('ucsc', __name__, url_prefix='/ucsc')
 
 # ucsc route
 @ucsc_blueprint.route('/')
 def ucsc():
-    if 'mysql.connector' not in sys.modules:
+    if not mysql_installed:
         return err_message
 
     db = request.args.get('db')
