@@ -2,6 +2,7 @@ import requests
 import re
 import os
 from flask import Response, request, abort, render_template, url_for, Blueprint
+from _config import basedir
 
 seen_tokens = set()
 
@@ -49,7 +50,7 @@ def allowed_emails():
     return emails
 
 def ranged_data_response(range_header, rel_path):
-    path = os.path.join(os.path.dirname(__file__), rel_path)
+    path = os.path.join(basedir, rel_path)
     if not range_header:
         return None
     m = re.search('(\d+)-(\d*)', range_header)
