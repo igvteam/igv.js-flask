@@ -21,11 +21,14 @@ def alignments():
         return err_message
 
     filename = request.args.get('file')
+
     if not filename:
         return "Please specify a filename."
     region = request.args.get('region')
-    if not region:
-        return "Please specify a region."
+
+  #  TODO -- enforce this unless getting header (-H)
+  #  if not region:
+  #      return "Please specify a region."
 
     reference = request.args.get('reference')
 
@@ -42,7 +45,8 @@ def build_view_args(filename, region, reference=None, options=None):
     args = []
 
     if options:
-        args.append(unquote(options))
+        optionArray = options.split(",")
+        args.extend(optionArray)
 
     if reference:
         #reference = os.path.join(basedir,"static/alignments/refs/" + reference + ".fa")
@@ -51,6 +55,8 @@ def build_view_args(filename, region, reference=None, options=None):
 
     #filename = os.path.join(basedir, "static/alignments/files/" + filename)
     args.append(filename)
-    args.append(region)
+
+    if region:
+        args.append(region)
 
     return args
