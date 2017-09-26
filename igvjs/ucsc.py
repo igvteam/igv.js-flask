@@ -13,7 +13,7 @@ except ImportError:
 ucsc_blueprint = Blueprint('ucsc', __name__, url_prefix='/ucsc')
 
 # ucsc route
-@ucsc_blueprint.route('/')
+@ucsc_blueprint.route('/', strict_slashes=False)
 def ucsc():
     if not mysql_installed:
         return err_message

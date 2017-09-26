@@ -15,7 +15,7 @@ except ImportError:
 alignments_blueprint = Blueprint('alignments', __name__, url_prefix='/alignments')
 
 #alignments route
-@alignments_blueprint.route('/')
+@alignments_blueprint.route('/', strict_slashes=False)
 def alignments():
     if not pysam_installed:
         return err_message
