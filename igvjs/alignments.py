@@ -24,15 +24,18 @@ def alignments():
 
     if not filename:
         return "Please specify a filename."
+
     region = request.args.get('region')
 
-  #  TODO -- enforce this unless getting header (-H)
-  #  if not region:
-  #      return "Please specify a region."
+    options = request.args.get("options")
+    if options:
+        options = options.split(",")
+
+    # must specify region unless getting the header
+    if not (region or '-H' in options):
+        return "Please specify a region."
 
     reference = request.args.get('reference')
-
-    options = request.args.get("options")
 
     args = build_view_args(filename, region, reference, options)
 
@@ -41,11 +44,10 @@ def alignments():
     except pysam.SamtoolsError as e:
         return e.value
 
-def build_view_args(filename, region, reference=None, options=None):
+def build_view_args(filename, region, reference=None, optionArray=None):
     args = []
 
-    if options:
-        optionArray = options.split(",")
+    if optionArray:
         args.extend(optionArray)
 
     if reference:

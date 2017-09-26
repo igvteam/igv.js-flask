@@ -24,8 +24,8 @@ def ucsc():
     start = request.args.get('start')
     end = request.args.get('end')
 
-    if not (db and table and chrom and start and end):
-        return "Please specify all parameters (db, table, chrom, start, end)."
+    if not all([db, table, chrom, start, end]):
+        return "Please specify all parameters (db, table, chr, start, end)."
 
     start = int(start)
     end = int(end)
@@ -88,7 +88,7 @@ def query_ucsc(cursor, table, chrom, start, end):
         "WHERE TABLE_NAME = %s AND COLUMN_NAME = 'bin' LIMIT 1", (table,))
 
     if cursor.fetchone():
-        bins = reg2bins(int(start), int(end))
+        bins = reg2bins(start, end)
         bin_str = '('+','.join(str(bin) for bin in bins)+')'
         query += " AND bin in "+bin_str
 
@@ -106,9 +106,17 @@ def query_ucsc(cursor, table, chrom, start, end):
             elif name == end_label:
                 name = 'end'
                 e = value
-            row_dict[name] = str(value)
+            row_dict[name] = convert_type(value)
 
         if e >= start and s <= end:
             results.append(row_dict)
 
     return results
+
+def convert_type(value):
+    value_type = type(value)
+    if value_type is bytearray:
+        return str(value)
+    elif value_type is set:
+        return ','.join(value)
+    return value
