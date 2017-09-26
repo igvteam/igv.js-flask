@@ -27,6 +27,9 @@ def ucsc():
     if not (db and table and chrom and start and end):
         return "Please specify all parameters (db, table, chrom, start, end)."
 
+    start = int(start)
+    end = int(end)
+
     ucsc_host = 'genome-mysql.soe.ucsc.edu'
     ucsc_user = 'genome'
 
@@ -99,9 +102,13 @@ def query_ucsc(cursor, table, chrom, start, end):
                 name = 'chr'
             elif name == start_label:
                 name = 'start'
+                s = value
             elif name == end_label:
                 name = 'end'
+                e = value
             row_dict[name] = str(value)
-        results.append(row_dict)
+
+        if e >= start and s <= end:
+            results.append(row_dict)
 
     return results
