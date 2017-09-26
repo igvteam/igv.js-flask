@@ -7,4 +7,4 @@ USES_OAUTH = False
 PUBLIC_DIR = "/static/data/public"
 ENABLE_CORS_REQUESTS = False
 
-DEBUG = True
+DEBUG = False
