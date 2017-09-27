@@ -10,7 +10,7 @@ function initBrowser() {
           fastaURL: "https://s3.amazonaws.com/igv.broadinstitute.org/genomes/seq/1kg_v37/human_g1k_v37_decoy.fasta",
           cytobandURL: "https://s3.amazonaws.com/igv.broadinstitute.org/genomes/seq/b37/b37_cytoband.txt"
       },
-      locus: "gstt1",
+      locus: "22:24,375,771-24,376,878",
       tracks:
               [
                   {
@@ -24,8 +24,12 @@ function initBrowser() {
                       visibilityWindow: 10000000,
                       order: Number.MAX_VALUE,
                       displayMode: "EXPANDED"
+                  },
+                  {
+                      url: 'static/data/public/gstt1_sample.bam',
+                      name: 'GSTT1 Alignments',
+                      height: 500
                   }
-
               ]
   };
 
