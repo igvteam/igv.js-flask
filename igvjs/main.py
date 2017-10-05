@@ -2,7 +2,7 @@ import requests
 import re
 import os
 from flask import Response, request, abort, render_template, url_for, Blueprint
-from _config import basedir
+from igvjs._config import basedir
 
 seen_tokens = set()
 

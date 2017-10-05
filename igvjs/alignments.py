@@ -1,6 +1,6 @@
 import os
 from flask import request, url_for, Blueprint
-from _config import basedir
+from igvjs._config import basedir
 
 err_message = 'pysam is not installed. Please install pysam (pip install pysam) '\
 'if you wish to use the alignments service.'
