@@ -42,7 +42,7 @@ def ucsc():
         cur.close()
         connection.close()
 
-    except mysql.connector.Error, e:
+    except mysql.connector.Error as e:
         try:
             return "mysql Error [{}]: {}".format(e.args[0], e.args[1])
         except IndexError:
@@ -58,15 +58,15 @@ def query_ucsc(cursor, table, chrom, start, end):
         bin_list = []
         end -= 1
         bin_list.append(0)
-        for k in xrange(1 + (beg >> 26), 2 + (end >> 26)):
+        for k in range(1 + (beg >> 26), 2 + (end >> 26)):
             bin_list.append(k)
-        for k in xrange(9 + (beg >> 23), 10 + (end >> 23)):
+        for k in range(9 + (beg >> 23), 10 + (end >> 23)):
             bin_list.append(k)
-        for k in xrange(73 + (beg >> 20), 74 + (end >> 20)):
+        for k in range(73 + (beg >> 20), 74 + (end >> 20)):
             bin_list.append(k)
-        for k in xrange(585 + (beg >> 17), 586 + (end >> 17)):
+        for k in range(585 + (beg >> 17), 586 + (end >> 17)):
             bin_list.append(k)
-        for k in xrange(4681 + (beg >> 14), 4682 + (end >> 14)):
+        for k in range(4681 + (beg >> 14), 4682 + (end >> 14)):
             bin_list.append(k)
         return bin_list
 
@@ -115,7 +115,7 @@ def query_ucsc(cursor, table, chrom, start, end):
 
 def convert_type(value):
     value_type = type(value)
-    if value_type is bytearray:
+    if value_type is bytearray or value_type is bytes:
         return str(value)
     elif value_type is set:
         return ','.join(value)
