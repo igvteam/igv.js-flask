@@ -58,7 +58,7 @@ def ranged_data_response(range_header, rel_path):
         return "Error: unexpected range header syntax: {}".format(range_header)
     size = os.path.getsize(path)
     offset = int(m.group(1))
-    length = int(m.group(2) or size) - offset
+    length = int(m.group(2) or size) - offset + 1
 
     data = None
     with open(path, 'rb') as f:
