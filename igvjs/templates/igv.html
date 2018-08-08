@@ -9,30 +9,13 @@
     <link rel="shortcut icon" href=../static/img/favicon.ico>
     <title>IGV - Integrative Genomics Viewer</title>
 
-    <!-- jQuery UI CSS -->
-    <link rel="stylesheet" type="text/css" href="//code.jquery.com/ui/1.12.1/themes/redmond/jquery-ui.css"/>
+    <script type="text/javascript" src="http://igv.org/web/test/dist/igv.js"></script>
 
-    <!-- Font Awesome CSS -->
-    <link rel="stylesheet" type="text/css"
-          href="https://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css">
-
-    <!-- IGV CSS -->
-    <link rel="stylesheet" type="text/css" href="../static/css/igv.css">
-
-    <!-- jQuery JS -->
-    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
-
-    <!-- jQuery UI JS -->
-    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
-
-    <!-- Vendor JS -->
-    <script type="text/javascript" src="{{ url_for('static', filename='js/igv.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/init.js') }}"></script>
     {% if config.USES_OAUTH %}
     <script type="text/javascript" src="{{ url_for('static', filename='js/oauth.js') }}"></script>
     {% endif %}
 
-    <script src="https://apis.google.com/js/api.js"></script>
 
 
 </head>
@@ -50,7 +33,7 @@
 <script type="text/javascript">
 
 
-    $(document).ready(function () {
+     document.addEventListener("DOMContentLoaded", function () {
       var uses_oauth = {{ config['USES_OAUTH']|tojson }}
       if (uses_oauth) {
         initBrowserWithOAuth();
