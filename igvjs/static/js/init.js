@@ -12,6 +12,10 @@ function initBrowser() {
                   {
                       url: 'static/data/public/test.bw',
                       name: 'BigWig'
+                  },
+                  {
+                      url: 'static/data/public/test.bedGraph',
+                      name: 'bedgraph'
                   }
               ]
   };
