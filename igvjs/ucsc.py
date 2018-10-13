@@ -70,19 +70,25 @@ def query_ucsc(cursor, table, chrom, start, end):
             bin_list.append(k)
         return bin_list
 
-    start_label = 'chromStart'
-    end_label = 'chromEnd'
-    base_query = "SELECT * FROM "+table+" WHERE chrom = %s"
-    results = []
+    chrom_column = 'chrom'
+    start_column = 'chromStart'
+    end_column = 'chromEnd'
 
-    cursor.execute("SELECT * FROM information_schema.COLUMNS " \
-        "WHERE TABLE_NAME = %s AND COLUMN_NAME = 'chromStart' LIMIT 1", (table,))
+    if table == 'rmsk':
+        chrom_column = 'genoName'
+        start_column = 'genoStart'
+        end_column = 'genoEnd'
 
-    if not cursor.fetchone():
-        start_label= "txStart"
-        end_label = "txEnd"
+    else:
+        cursor.execute("SELECT * FROM information_schema.COLUMNS " \
+            "WHERE TABLE_NAME = %s AND COLUMN_NAME = 'chromStart' LIMIT 1", (table,))
 
-    query = base_query + " AND {} >= %s AND {} <= %s".format(start_label, end_label)
+        if not cursor.fetchone():
+            start_column= "txStart"
+            end_column = "txEnd"
+
+    query = "SELECT * FROM "+ table + \
+            " WHERE " + chrom_column + " = %s AND " + start_column + " >= %s AND " + end_column + " <= %s"
 
     cursor.execute("SELECT * FROM information_schema.COLUMNS " \
         "WHERE TABLE_NAME = %s AND COLUMN_NAME = 'bin' LIMIT 1", (table,))
@@ -90,20 +96,21 @@ def query_ucsc(cursor, table, chrom, start, end):
     if cursor.fetchone():
         bins = reg2bins(start, end)
         bin_str = '('+','.join(str(bin) for bin in bins)+')'
-        query += " AND bin in "+bin_str
+        query += " AND bin in "+ bin_str
 
     cursor.execute(query, (chrom, start, end))
 
+    results = []
     for row in cursor.fetchall():
         row_dict = {}
         for description, value in zip(cursor.description, row):
             name = description[0]
-            if name == 'chrom':
+            if name == chrom_column:
                 name = 'chr'
-            elif name == start_label:
+            elif name == start_column:
                 name = 'start'
                 s = value
-            elif name == end_label:
+            elif name == end_column:
                 name = 'end'
                 e = value
             row_dict[name] = convert_type(value)
