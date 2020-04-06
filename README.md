@@ -15,7 +15,7 @@ python run.py
 Now that the server is running, go to (http://localhost:5000) to use IGV.
 To view one of the example tracks, click on it in the box in the upper left corner.
 
-Alternatively, you can set the environment variable FLASK_APP to ijvjs.py and use 'flask run':
+Alternatively, you can set the environment variable FLASK_APP to igvjs.py and use 'flask run':
 ```sh
 export FLASK_APP=igvjs.py
 flask run
