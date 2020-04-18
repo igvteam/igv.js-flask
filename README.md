@@ -24,7 +24,31 @@ Note: With this method, you can use the command-line options for flask run. For
 example, use the -p option to set port number. Use --host=0.0.0.0 to make the
 server externally visible (eg. flask run -p 8659 --host=0.0.0.0).
 
+## Additional Flask Blueprints
+
+Additional Flask Blueprints are defined in the project for the following:
+
+### UCSC Blueprint
+
+The UCSC genome database may be directly accessed with this blueprint.
+
+The mysql connection needs to be installed for this blueprint to work:
+
+```
+pip install mysql-connector==2.1.7
+```
+Restarting the application and going to (http://localhost:5000/ucsc) links up with the UCSC database.
+
+A full set of parameters (db, table, chr, start, end) needs to be provided as GET parameters, e.g. (http://localhost:5000/ucsc?db=hg38&table=knownGene&chr=chrX&start=15560138&end=15602945). See the[UCSC Table Browser](https://genome.ucsc.edu/cgi-bin/hgTables) for inspiration on what parameter values to use.
+
+### Alignment Blueprint
+
+The [pysam module needs to be installed](https://pysam.readthedocs.io/en/latest/installation.html) for this Blueprint to work (this may be a non-trivial installation on some machines).
+
+Restarting the application and going to (http://localhost:5000/alignments) links up with the UCSC database.
+
 ### Configuration
+
 Configuration options can be set in _config.py in the root directory.
 
 Currently supported options are:  

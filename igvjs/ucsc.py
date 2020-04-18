@@ -2,7 +2,7 @@ import re
 from flask import request, jsonify, Blueprint
 
 err_message = 'mysql.connector is not installed. Please install mysql-connector ' \
-    '(pip install mysql-connector==2.1.4) if you wish to use the UCSC service.'
+    '(pip install mysql-connector==2.1.7) if you wish to use the UCSC service.'
 
 mysql_installed = True
 try:
@@ -25,7 +25,10 @@ def ucsc():
     end = request.args.get('end')
 
     if not all([db, table, chrom, start, end]):
-        return "Please specify all parameters (db, table, chr, start, end)."
+        return "<p><b>Please specify all parameters (db, table, chr, start, end).</p>" \
+               "<p>e.g. <code>http://localhost:5000/ucsc?db=hg38&table=knownGene&chr=chrX&start=15560138&end=15602945</code></p>" \
+               "<p>(See <a href=\"https://genome.ucsc.edu/cgi-bin/hgTables\">UCSC Table Browser</a> " \
+               "for inspiration on what parameter values to use)<p>"
 
     start = int(start)
     end = int(end)
