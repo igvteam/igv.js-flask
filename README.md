@@ -1,5 +1,10 @@
-# IGV with Flask
-An example project for integrating igv.js and [Flask](https://flask.pocoo.org/)
+# IMPORTANT
+
+This repository is an example of an integration of igv.js with a Flask server.   It is not an active development project and not maintained.   Our efforts are focused on the [igv.js component itself](https://github.com/igvteam/igv.js).  For an example of a complete website integrating igv.js for use with any web server, including Flask,  see [igv-webapp](https://github.com/igvteam/igv-webapp).
+
+## Notes on sample data
+
+The sample project includes test data in "static/data/public".   The bedgraph and bigwig files in that directory contain data on chr1 (only).  The "gsst1.bam" file contains data for the gstt1 locus, specifically ```chr22:24,374,133-24,386,311```.  
 
 ## Installation
 You can install all required packages including Flask using [pip](https://pip.pypa.io/en/stable/).
