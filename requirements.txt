@@ -1,6 +1,6 @@
 requests>=2.20.0
 Flask>=0.12.3
-Flask-Cors==3.0.9
+Flask-Cors==5.0.0
 Flask-Compress==1.4.0
 #mysql-connector==2.1.4
 #pysam==0.12
